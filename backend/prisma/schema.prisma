@@ -1,0 +1,238 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                 String      @id @default(cuid())
+  email              String      @unique
+  password           String
+  name               String
+  role               Role        @default(OPERATOR)
+  costCenterId       String?
+  status             UserStatus  @default(ACTIVO)
+  mustChangePassword Boolean     @default(false)
+  lastPasswordChange DateTime?
+  securityQuestion   String      @default("")
+  securityAnswer     String      @default("")
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+  assignedCostCenter CostCenter? @relation("AssignedUser")
+  costCenter         CostCenter? @relation(fields: [costCenterId], references: [id])
+
+  @@map("users")
+}
+
+model CostCenter {
+  id              String               @id @default(cuid())
+  code            String               @unique
+  description     String?
+  parentId        String?
+  assignedUserId  String?              @unique
+  status          CostCenterStatus     @default(ACTIVO)
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+  assignedUser    User?                @relation("AssignedUser", fields: [assignedUserId], references: [id])
+  parent          CostCenter?          @relation("CostCenterHierarchy", fields: [parentId], references: [id])
+  children        CostCenter[]         @relation("CostCenterHierarchy")
+  deadlineConfigs DeadlineConfig[]
+  indicatorData   IndicatorData[]
+  indicators      Indicator[]          @relation("IndicatorResponsible")
+  actions         StrategicAction[]    @relation("ActionResponsible")
+  objectives      StrategicObjective[] @relation("ObjectiveResponsible")
+  users           User[]
+
+  @@map("cost_centers")
+}
+
+model StrategicPlan {
+  id                  String               @id @default(cuid())
+  name                String
+  description         String?
+  startYear           Int
+  endYear             Int
+  status              PlanStatus           @default(VIGENTE)
+  ceplanValidationDoc String?
+  approvalDoc         String?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  indicators          Indicator[]
+  actions             StrategicAction[]
+  objectives          StrategicObjective[]
+
+  @@map("strategic_plans")
+}
+
+model StrategicObjective {
+  id            String            @id @default(cuid())
+  planId        String
+  code          String            @unique
+  statement     String
+  responsibleId String?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  indicators    Indicator[]       @relation("ObjectiveIndicator")
+  actions       StrategicAction[] @relation("ObjectiveAction")
+  plan          StrategicPlan     @relation(fields: [planId], references: [id], onDelete: Cascade)
+  responsible   CostCenter?       @relation("ObjectiveResponsible", fields: [responsibleId], references: [id])
+
+  @@map("strategic_objectives")
+}
+
+model StrategicAction {
+  id            String              @id @default(cuid())
+  planId        String
+  code          String
+  statement     String
+  responsibleId String?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  objectiveId   String?
+  indicators    Indicator[]         @relation("ActionIndicator")
+  objective     StrategicObjective? @relation("ObjectiveAction", fields: [objectiveId], references: [id])
+  plan          StrategicPlan       @relation(fields: [planId], references: [id], onDelete: Cascade)
+  responsible   CostCenter?         @relation("ActionResponsible", fields: [responsibleId], references: [id])
+
+  @@map("strategic_actions")
+}
+
+model Variable {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  unit        String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("variables")
+}
+
+model IndicatorVariable {
+  id            String          @id @default(cuid())
+  indicatorId   String
+  code          String
+  name          String
+  description   String?
+  fields        Json
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  indicatorData IndicatorData[]
+  indicator     Indicator       @relation(fields: [indicatorId], references: [id], onDelete: Cascade)
+
+  @@map("indicator_variables")
+}
+
+model Indicator {
+  id                 String              @id @default(cuid())
+  planId             String
+  objectiveId        String?
+  actionId           String?
+  code               String
+  statement          String
+  responsibleId      String?
+  formula            String?
+  parameter          String?
+  baseYear           Int?
+  baseValue          Float?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  indicatorValues    IndicatorValue[]
+  indicatorVariables IndicatorVariable[]
+  action             StrategicAction?    @relation("ActionIndicator", fields: [actionId], references: [id])
+  objective          StrategicObjective? @relation("ObjectiveIndicator", fields: [objectiveId], references: [id])
+  plan               StrategicPlan       @relation(fields: [planId], references: [id], onDelete: Cascade)
+  responsible        CostCenter?         @relation("IndicatorResponsible", fields: [responsibleId], references: [id])
+
+  @@map("indicators")
+}
+
+model IndicatorValue {
+  id          String    @id @default(cuid())
+  indicatorId String
+  year        Int
+  value       Float
+  type        ValueType @default(ABSOLUTE)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  indicator   Indicator @relation(fields: [indicatorId], references: [id], onDelete: Cascade)
+
+  @@map("indicator_values")
+}
+
+model IndicatorData {
+  id             String            @id @default(cuid())
+  variableId     String
+  costCenterId   String?
+  costCenterCode String
+  year           Int
+  values         Json
+  status         DataStatus        @default(PENDING)
+  createdBy      String
+  updatedBy      String?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  costCenter     CostCenter?       @relation(fields: [costCenterId], references: [id])
+  variable       IndicatorVariable @relation(fields: [variableId], references: [id], onDelete: Cascade)
+
+  @@unique([variableId, costCenterId, year])
+  @@map("indicator_data")
+}
+
+model DeadlineConfig {
+  id            String         @id @default(cuid())
+  costCenterId  String
+  startDate     DateTime
+  endDate       DateTime
+  endTime       String
+  notifications Json
+  status        DeadlineStatus @default(PENDING)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  costCenter    CostCenter     @relation(fields: [costCenterId], references: [id], onDelete: Cascade)
+
+  @@index([costCenterId])
+  @@map("deadline_configs")
+}
+
+enum ValueType {
+  ABSOLUTE
+  RELATIVE
+}
+
+enum DataStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  DRAFT
+}
+
+enum DeadlineStatus {
+  PENDING
+  ACTIVE
+  EXPIRED
+}
+
+enum Role {
+  ADMIN
+  OPERATOR
+}
+
+enum PlanStatus {
+  VIGENTE
+  NO_VIGENTE
+  AMPLIADO
+}
+
+enum CostCenterStatus {
+  ACTIVO
+  INACTIVO
+}
+
+enum UserStatus {
+  ACTIVO
+  INACTIVO
+}
