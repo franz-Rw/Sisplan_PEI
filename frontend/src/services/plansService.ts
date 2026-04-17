@@ -33,6 +33,12 @@ export const plansService = {
     return response.data
   },
 
+  // Obtener un plan por ID
+  getById: async (id: string): Promise<StrategicPlan> => {
+    const response = await apiClient.get(`/plans/${id}`)
+    return response.data
+  },
+
   // Crear nuevo plan
   create: async (planData: CreatePlanRequest): Promise<StrategicPlan> => {
     const response = await apiClient.post('/plans', planData)

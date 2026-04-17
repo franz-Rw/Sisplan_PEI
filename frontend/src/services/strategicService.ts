@@ -120,6 +120,11 @@ export const strategicObjectivesService = {
     return response.data
   },
 
+  getById: async (id: string): Promise<StrategicObjective> => {
+    const response = await apiClient.get(`/strategic-objectives/${id}`)
+    return response.data
+  },
+
   getCostCentersForAssignment: async (): Promise<CostCenterOption[]> => {
     const response = await apiClient.get('/strategic-objectives/cost-centers')
     return response.data
@@ -143,6 +148,11 @@ export const strategicObjectivesService = {
 export const strategicActionsService = {
   getAll: async (): Promise<StrategicAction[]> => {
     const response = await apiClient.get('/strategic-actions')
+    return response.data
+  },
+
+  getById: async (id: string): Promise<StrategicAction> => {
+    const response = await apiClient.get(`/strategic-actions/${id}`)
     return response.data
   },
 
@@ -173,6 +183,11 @@ export const indicatorsService = {
       console.error('Error fetching all indicators:', error)
       return []
     }
+  },
+
+  getById: async (id: string): Promise<Indicator> => {
+    const response = await apiClient.get(`/indicators/${id}`)
+    return response.data
   },
 
   // Obtener indicadores por objetivo

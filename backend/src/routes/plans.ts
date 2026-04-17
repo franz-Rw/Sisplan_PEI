@@ -10,6 +10,9 @@ router.use(authenticate)
 // GET /api/plans - Obtener todos los planes
 router.get('/', plansController.getAll)
 
+// GET /api/plans/:id - Obtener un plan por ID
+router.get('/:id', plansController.getById)
+
 // POST /api/plans - Crear nuevo plan
 router.post('/', plansController.create)
 

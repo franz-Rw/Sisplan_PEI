@@ -61,7 +61,7 @@ interface IndicatorData {
   costCenterCode: string
   year: number
   values: { [key: string]: any }
-  status: 'pending' | 'approved' | 'rejected'
+  status: 'draft' | 'pending' | 'approved' | 'rejected'
   createdAt: string
   updatedAt: string
   createdBy: string
@@ -93,11 +93,11 @@ export default function OperatorSeguimiento() {
   // Estados de selección
   const [selectedPlan, setSelectedPlan] = useState<string>('')
   const [selectedObjective, setSelectedObjective] = useState<string>('')
-  const [selectedAction, _setSelectedAction] = useState<string>('')
+  const [selectedAction, setSelectedAction] = useState<string>('')
   const [expandedObjectives, setExpandedObjectives] = useState<string[]>([])
   const [expandedActions, setExpandedActions] = useState<string[]>([])
   const [expandedIndicators, setExpandedIndicators] = useState<string[]>([])
-  const [selectedIndicator, _setSelectedIndicator] = useState<string>('')
+  const [selectedIndicator, setSelectedIndicator] = useState<string>('')
   const [selectedVariable, setSelectedVariable] = useState<string>('')
   
   // Estados de UI
@@ -119,6 +119,27 @@ export default function OperatorSeguimiento() {
     loadPlans()
     loadCostCenters()
   }, [])
+
+  // ✅ NUEVO: Limpiar estado cuando cambia de pestaña
+  useEffect(() => {
+    // Reiniciar todos los estados específicos de la pestaña
+    setSelectedObjective('')
+    setSelectedAction('')
+    setSelectedIndicator('')
+    setSelectedVariable('')
+    setIndicators([])
+    setVariables([])
+    setIndicatorData([])
+    setCurrentPage(1)
+    setSelectedRecords(new Set())
+    setFormData({
+      year: new Date().getFullYear(),
+      values: {}
+    })
+    setEditingRecord(null)
+    setShowFormModal(false)
+    setExpandedIndicators([])
+  }, [activeTab]) // Ejecutar cuando activeTab cambia
 
   useEffect(() => {
     if (selectedPlan) {
@@ -305,22 +326,22 @@ export default function OperatorSeguimiento() {
 
   const handleObjectiveClick = (objectiveId: string) => {
     toggleExpanded('objective', objectiveId)
-    loadIndicators(objectiveId)
+    setSelectedObjective(objectiveId) // Actualizar estado para que useEffect se ejecute
   }
 
   const handleActionClick = (actionId: string) => {
     toggleExpanded('action', actionId)
-    loadIndicators(undefined, actionId)
+    setSelectedAction(actionId) // Actualizar estado para que useEffect se ejecute
   }
 
   const handleIndicatorClick = (indicatorId: string) => {
     toggleExpanded('indicator', indicatorId)
-    loadVariables(indicatorId)
+    setSelectedIndicator(indicatorId) // Actualizar estado para que useEffect se ejecute
   }
 
   const handleVariableClick = (variableId: string) => {
-    setSelectedVariable(variableId)
-    loadIndicatorData(variableId)
+    setSelectedVariable(variableId) // Ya lo hace correctamente
+    // El useEffect se ejecutará y cargará los datos
     // Solo cargar los datos, no abrir el modal de formulario
   }
 
@@ -333,7 +354,7 @@ export default function OperatorSeguimiento() {
     const variable = variables.find(v => v.id === variableId)
     
     if (variable) {
-      _setSelectedIndicator(variable.indicatorId)
+      setSelectedIndicator(variable.indicatorId)
       console.log('Variable found:', variable.name)
       console.log('Indicator ID:', variable.indicatorId)
     } else {
@@ -342,7 +363,7 @@ export default function OperatorSeguimiento() {
         // Intentar obtener la variable directamente
         const response = await apiClient.get(`/indicator-variables/${variableId}`)
         if (response.data) {
-          _setSelectedIndicator(response.data.indicatorId)
+          setSelectedIndicator(response.data.indicatorId)
           console.log('Variable loaded from API:', response.data.name)
         }
       } catch (error) {
@@ -358,8 +379,6 @@ export default function OperatorSeguimiento() {
       year: new Date().getFullYear(),
       values: {}
     })
-    setReadyForApproval(false)
-    
     console.log('=== END DEBUG: handleAddNewRecord ===')
   }
 
@@ -395,7 +414,7 @@ export default function OperatorSeguimiento() {
                     ))
     
     if (variable) {
-      _setSelectedIndicator(variable.indicatorId)
+      setSelectedIndicator(variable.indicatorId)
     }
     
     setFormData({
@@ -500,9 +519,10 @@ export default function OperatorSeguimiento() {
 
     try {
       const payload = {
-        indicatorId: selectedIndicator,
         variableId: selectedVariable,
-        ...formData,
+        costCenterId: user?.costCenter?.id || editingRecord?.costCenterId || null,
+        year: formData.year,
+        values: formData.values,
         status: action === 'send' ? 'PENDING' : 'DRAFT'
       }
 
@@ -679,7 +699,7 @@ export default function OperatorSeguimiento() {
               className="w-4 h-4 border border-neutral-300 rounded focus:outline-none focus:ring-2 focus:ring-primary-500"
             />
             <label className="text-sm text-neutral-700">
-              {formatFieldName(field.name)}
+              {field.label}
             </label>
           </div>
         )
@@ -1015,7 +1035,7 @@ export default function OperatorSeguimiento() {
                                                                       <th className="px-4 py-3 text-left text-xs font-semibold text-purple-700 uppercase tracking-wider">Año</th>
                                                                       {variables.find(v => v.id === selectedVariable)?.fields.map(field => (
                                                                         <th key={field.id} className="px-4 py-3 text-left text-xs font-semibold text-purple-700 uppercase tracking-wider">
-                                                                          {formatFieldName(field.name)}
+                                                                          {field.label}
                                                                         </th>
                                                                       ))}
                                                                       <th className="px-4 py-3 text-left text-xs font-semibold text-purple-700 uppercase tracking-wider">Estado</th>
@@ -1070,7 +1090,7 @@ export default function OperatorSeguimiento() {
                                                                                  }}></div>
                                                                             {record.status === 'approved' ? 'Aprobado' : 
                                                                              record.status === 'rejected' ? 'Rechazado' : 
-                                                                             record.status === 'pending' ? 'Enviado a aprobar' : 'Borrador'}
+                                                                             record.status === 'pending' ? 'Enviado a aprobar' : 'Guardado como borrador'}
                                                                           </div>
                                                                         </td>
                                                                         <td className="px-4 py-3 whitespace-nowrap text-sm font-medium">
@@ -1083,14 +1103,24 @@ export default function OperatorSeguimiento() {
                                                                               <FiEdit className="w-3 h-3" />
                                                                               <span className="text-xs">Editar</span>
                                                                             </button>
-                                                                            {record.status !== 'pending' && record.status !== 'approved' && (
+                                                                            {record.status === 'draft' && (
                                                                               <button
                                                                                 onClick={() => handleSendToApproval(record.id)}
                                                                                 className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors"
                                                                                 title="Enviar a aprobación"
                                                                               >
                                                                                 <FiCheckCircle className="w-3 h-3" />
-                                                                                <span className="text-xs">Enviar</span>
+                                                                                <span className="text-xs">Enviar a Aprobar</span>
+                                                                              </button>
+                                                                            )}
+                                                                            {record.status === 'rejected' && (
+                                                                              <button
+                                                                                onClick={() => handleSendToApproval(record.id)}
+                                                                                className="inline-flex items-center gap-1 px-2 py-1 bg-orange-100 text-orange-700 rounded-lg hover:bg-orange-200 transition-colors"
+                                                                                title="Reenviar a aprobación"
+                                                                              >
+                                                                                <FiCheckCircle className="w-3 h-3" />
+                                                                                <span className="text-xs">Reenviar</span>
                                                                               </button>
                                                                             )}
                                                                             <button
@@ -1229,7 +1259,7 @@ export default function OperatorSeguimiento() {
           </div>
 
           {/* Actions Table - Similar to objectives */}
-          {selectedPlan && selectedObjective && (
+          {selectedPlan && (
             <div className="bg-white rounded-xl border border-neutral-200 p-6">
               <h3 className="text-lg font-semibold text-neutral-900 mb-4">
                 Acciones Estratégicas Institucionales asignadas
@@ -1254,7 +1284,6 @@ export default function OperatorSeguimiento() {
                   </thead>
                   <tbody className="bg-white divide-y divide-neutral-200">
                     {actions
-                      .filter(action => action.objectiveId === selectedObjective)
                       .map(action => (
                         <React.Fragment key={action.id}>
                           <tr className="hover:bg-neutral-50">
@@ -1430,7 +1459,7 @@ export default function OperatorSeguimiento() {
                                                                         <th className="px-4 py-3 text-left text-xs font-semibold text-indigo-700 uppercase tracking-wider">Año</th>
                                                                         {variables.find(v => v.id === selectedVariable)?.fields.map(field => (
                                                                           <th key={field.id} className="px-4 py-3 text-left text-xs font-semibold text-indigo-700 uppercase tracking-wider">
-                                                                            {formatFieldName(field.name)}
+                                                                            {field.label}
                                                                           </th>
                                                                         ))}
                                                                         <th className="px-4 py-3 text-left text-xs font-semibold text-indigo-700 uppercase tracking-wider">Estado</th>
@@ -1645,7 +1674,7 @@ export default function OperatorSeguimiento() {
                   {field.type !== 'checkbox' && (
                     <>
                       <label className="block text-sm font-medium text-neutral-700 mb-2">
-                        {formatFieldName(field.name)} {field.required && <span className="text-red-500">*</span>}
+                        {field.label} {field.required && <span className="text-red-500">*</span>}
                       </label>
                       {field.type === 'coordinates' && (
                         <p className="text-xs text-neutral-500 mb-3">
@@ -1673,7 +1702,6 @@ export default function OperatorSeguimiento() {
                       year: new Date().getFullYear(),
                       values: {}
                     })
-                    setReadyForApproval(false)
                   }}
                   className="px-4 py-2 text-neutral-700 bg-neutral-100 rounded-lg hover:bg-neutral-200"
                 >

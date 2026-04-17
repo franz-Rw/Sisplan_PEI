@@ -6,8 +6,8 @@ export interface IndicatorDataRecord {
   costCenterId?: string
   costCenterCode: string
   year: number
-  values: { [key: string]: any }
-  status: 'pending' | 'approved' | 'rejected'
+  values: Record<string, unknown>
+  status: 'draft' | 'pending' | 'approved' | 'rejected'
   createdAt: string
   updatedAt: string
   createdBy: string
@@ -27,16 +27,35 @@ export interface IndicatorDataRecord {
     indicator?: {
       id: string
       code: string
-      name: string
+      statement: string
       planId: string
-      objectiveId: string
+      objectiveId?: string
       actionId?: string
+      plan?: {
+        id: string
+        name: string
+      }
+      objective?: {
+        id: string
+        code: string
+        statement: string
+      }
+      action?: {
+        id: string
+        code: string
+        statement: string
+        objective?: {
+          id: string
+          code: string
+          statement: string
+        }
+      }
     }
   }
   costCenter?: {
     id: string
     code: string
-    description: string
+    description?: string
   }
 }
 
@@ -95,7 +114,7 @@ export const indicatorDataService = {
   // Obtener datos de una variable por estado
   getByVariableAndStatus: async (
     variableId: string,
-    status: 'pending' | 'approved' | 'rejected'
+    status: 'draft' | 'pending' | 'approved' | 'rejected'
   ): Promise<IndicatorDataRecord[]> => {
     try {
       const response = await apiClient.get(`/indicator-data/variable/${variableId}`, {

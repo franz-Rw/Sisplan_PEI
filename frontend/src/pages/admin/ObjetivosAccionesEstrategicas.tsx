@@ -239,6 +239,12 @@ export default function ObjetivosAccionesEstrategicas() {
       return
     }
     
+    // Validación de exclusividad: no puede tener ambos objectiveId y actionId
+    if (indicatorFormData.objectiveId && indicatorFormData.actionId) {
+      alert('Error: Un indicador solo puede pertenecer a un objetivo O a una acción estratégica, no a ambos')
+      return
+    }
+    
     if (!indicatorFormData.objectiveId && !indicatorFormData.actionId) {
       alert('Por favor seleccione un objetivo o una acción')
       return
@@ -335,7 +341,7 @@ export default function ObjetivosAccionesEstrategicas() {
     setEditingAction(action)
     setActionFormData({
       planId: action.planId,
-      objectiveId: action.objectiveId || '',
+      objectiveId: action.objectiveId || undefined,
       code: action.code,
       statement: action.statement,
       responsibleId: action.responsibleId || ''
@@ -422,6 +428,7 @@ export default function ObjetivosAccionesEstrategicas() {
   const handleShowIndicatorsForm = (objective: StrategicObjective) => {
     setSelectedObjective(objective)
     setSelectedAction(null)
+    setEditingIndicator(null) // Resetear modo edición
     resetIndicatorForm()
     setIndicatorFormData({
       ...indicatorFormData,
@@ -437,10 +444,11 @@ export default function ObjetivosAccionesEstrategicas() {
     console.log('handleShowIndicatorsFormForAction called with action:', action)
     setSelectedAction(action)
     setSelectedObjective(null)
+    setEditingIndicator(null) // Resetear modo edición
     resetIndicatorForm()
     setIndicatorFormData({
       planId: action.planId,
-      objectiveId: undefined,
+      objectiveId: '', // Los indicadores de acciones NO deben tener objectiveId
       actionId: action.id,
       code: '',
       statement: '',

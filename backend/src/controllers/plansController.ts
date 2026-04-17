@@ -20,6 +20,26 @@ export const plansController = {
     }
   },
 
+  // Obtener un plan estratégico por ID
+  getById: async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params
+
+      const plan = await prisma.strategicPlan.findUnique({
+        where: { id }
+      })
+
+      if (!plan) {
+        return res.status(404).json({ error: 'Plan no encontrado' })
+      }
+
+      return res.json(plan)
+    } catch (error) {
+      console.error('Error al obtener plan:', error)
+      return res.status(500).json({ error: 'Error al obtener plan' })
+    }
+  },
+
   // Crear nuevo plan estratégico
   create: async (req: Request, res: Response) => {
     try {

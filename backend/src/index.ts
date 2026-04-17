@@ -1,4 +1,4 @@
-import express from 'express'
+ import express from 'express'
 import 'express-async-errors'
 import cors from 'cors'
 import helmet from 'helmet'
@@ -43,6 +43,8 @@ import indicatorVariablesRoutes from './routes/indicatorVariables'
 import indicatorDataRoutes from './routes/indicatorData'
 import deadlineConfigRoutes from './routes/deadlineConfig'
 import reportsRoutes from './routes/reports'
+import indicatorExceptionsRoutes from './routes/indicatorExceptions'
+import dynamicFormulasRoutes from './routes/dynamicFormulas'
 
 app.use('/api/auth', authRoutes)
 app.use('/api/plans', plansRoutes)
@@ -56,6 +58,8 @@ app.use('/api/indicator-variables', indicatorVariablesRoutes)
 app.use('/api/indicator-data', indicatorDataRoutes)
 app.use('/api/deadline-configs', deadlineConfigRoutes)
 app.use('/api/reports', reportsRoutes)
+app.use('/api/indicator-data', indicatorExceptionsRoutes)
+app.use('/api/dynamic-formulas', dynamicFormulasRoutes)
 
 // Error handling middleware
 app.use(errorHandler)

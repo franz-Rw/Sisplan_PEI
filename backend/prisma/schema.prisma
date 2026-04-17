@@ -23,6 +23,11 @@ model User {
   updatedAt          DateTime    @updatedAt
   assignedCostCenter CostCenter? @relation("AssignedUser")
   costCenter         CostCenter? @relation(fields: [costCenterId], references: [id])
+  users             User[]
+  assignedIndicators IndicatorAssignment[]
+  auditLogs        AuditLog[]
+  assignedAssignments IndicatorAssignment[] @relation("AssignedBy")
+  deletedAssignments IndicatorAssignment[] @relation("DeletedBy")
 
   @@map("users")
 }
@@ -45,6 +50,7 @@ model CostCenter {
   actions         StrategicAction[]    @relation("ActionResponsible")
   objectives      StrategicObjective[] @relation("ObjectiveResponsible")
   users           User[]
+  exceptions      IndicatorDataException[]
 
   @@map("cost_centers")
 }
@@ -122,8 +128,47 @@ model IndicatorVariable {
   updatedAt     DateTime        @updatedAt
   indicatorData IndicatorData[]
   indicator     Indicator       @relation(fields: [indicatorId], references: [id], onDelete: Cascade)
+  autocompleteValues AutocompleteValue[]
+  dependentListValues DependentListValue[]
+  exceptions    IndicatorDataException[]
 
   @@map("indicator_variables")
+}
+
+model AutocompleteValue {
+  id                String @id @default(cuid())
+  variableId        String
+  fieldId           String // ID del campo específico dentro del formulario
+  level             Int    // Nivel de la lista (1, 2, 3, 4)
+  parentValue       String? // Valor seleccionado en el nivel anterior
+  triggerValue      String  // Valor que activa este autocompletado
+  autocompleteValue String  // Valor que se autocompleta
+  label             String? // Etiqueta descriptiva opcional
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  variable IndicatorVariable @relation(fields: [variableId], references: [id], onDelete: Cascade)
+
+  @@unique([variableId, fieldId, level, triggerValue])
+  @@map("autocomplete_values")
+}
+
+model DependentListValue {
+  id          String   @id @default(cuid())
+  variableId  String
+  nodeId      String   // ID único del nodo en el árbol
+  parentId    String?  // ID del nodo padre (null para raíz)
+  level       Int      // Nivel de profundidad en el árbol
+  label       String   // Etiqueta visible para el usuario
+  value       String   // Valor almacenado
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  variable IndicatorVariable @relation(fields: [variableId], references: [id], onDelete: Cascade)
+  parent   DependentListValue? @relation("DependentListHierarchy", fields: [parentId], references: [id])
+  children DependentListValue[] @relation("DependentListHierarchy")
+
+  @@map("dependent_list_values")
 }
 
 model Indicator {
@@ -142,6 +187,7 @@ model Indicator {
   updatedAt          DateTime            @updatedAt
   indicatorValues    IndicatorValue[]
   indicatorVariables IndicatorVariable[]
+  formulaConfig      IndicatorFormulaConfig?
   action             StrategicAction?    @relation("ActionIndicator", fields: [actionId], references: [id])
   objective          StrategicObjective? @relation("ObjectiveIndicator", fields: [objectiveId], references: [id])
   plan               StrategicPlan       @relation(fields: [planId], references: [id], onDelete: Cascade)
@@ -198,6 +244,80 @@ model DeadlineConfig {
   @@map("deadline_configs")
 }
 
+model IndicatorDataException {
+  id                   String              @id @default(cuid())
+  variableId           String
+  reason               String
+  periodFrom           String              // Formato YYYY-MM-DD
+  periodTo             String              // Formato YYYY-MM-DD
+  costCenterId         String
+  supportFile          String              // Nombre del archivo guardado
+  supportFileOriginal  String              // Nombre original del archivo
+  status               ExceptionStatus     @default(PENDING)
+  submittedBy          String
+  reviewComment        String?
+  reviewedBy           String?
+  reviewedAt           DateTime?
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+  
+  variable             IndicatorVariable    @relation(fields: [variableId], references: [id], onDelete: Cascade)
+  costCenter           CostCenter          @relation(fields: [costCenterId], references: [id])
+
+  @@unique([variableId, costCenterId, periodFrom, periodTo])
+  @@map("indicator_data_exceptions")
+}
+
+model IndicatorAssignment {
+  id            String              @id @default(cuid())
+  indicatorId   String
+  userId        String
+  status        AssignmentStatus    @default(ACTIVE)
+  notes         String?
+  validFrom     DateTime            @default(now())
+  validTo       DateTime?
+  assignedAt    DateTime            @default(now())
+  assignedBy    String?
+  updatedAt     DateTime            @updatedAt
+  deletedAt     DateTime?
+  deletedBy     String?
+  deletionReason String?
+  user          User                @relation("AssignedIndicators", fields: [userId], references: [id], onDelete: Cascade)
+  indicator     Indicator           @relation(fields: [indicatorId], references: [id], onDelete: Cascade)
+  assigner      User?               @relation("AssignedBy", fields: [assignedBy], references: [id])
+  deleter      User?               @relation("DeletedBy", fields: [deletedBy], references: [id])
+
+  @@map("indicator_assignments")
+}
+
+model AuditLog {
+  id         String     @id @default(cuid())
+  action     AuditAction
+  entityType String
+  entityId   String
+  userId     String?
+  details    Json?
+  createdAt  DateTime   @default(now())
+  user       User?      @relation("AuditLogs", fields: [userId], references: [id])
+
+  @@map("audit_logs")
+}
+
+enum AssignmentStatus {
+  ACTIVE
+  INACTIVE
+  EXPIRED
+  DELETED
+}
+
+enum AuditAction {
+  INDICATOR_ASSIGNED
+  INDICATOR_ASSIGNMENT_UPDATED
+  INDICATOR_ASSIGNMENT_DELETED
+  USER_LOGIN
+  DATA_UPDATED
+}
+
 enum ValueType {
   ABSOLUTE
   RELATIVE
@@ -214,6 +334,12 @@ enum DeadlineStatus {
   PENDING
   ACTIVE
   EXPIRED
+}
+
+enum ExceptionStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 enum Role {
@@ -235,4 +361,72 @@ enum CostCenterStatus {
 enum UserStatus {
   ACTIVO
   INACTIVO
+}
+
+enum FormulaType {
+  PERCENTAGE
+  RATIO
+  RATE
+  SUM
+  COUNT
+  AVERAGE
+  CUSTOM
+}
+
+enum FormulaCategory {
+  BASIC
+  ADVANCED
+  CUSTOM
+  TEMPLATE
+}
+
+model DynamicFormula {
+  id                String           @id @default(cuid())
+  name              String
+  description       String?
+  expressionTree    Json             // AST de la expresión visual
+  components        Json             // Componentes de la fórmula
+  conditions        Json[]           // Array de condiciones
+  aggregationType   String?          // SUM, COUNT, AVG, MAX, MIN
+  category          FormulaCategory   @default(BASIC)
+  isTemplate        Boolean          @default(false)
+  isActive          Boolean          @default(true)
+  createdBy         String?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  indicatorConfigs  IndicatorFormulaConfig[]
+}
+
+model IndicatorFormulaConfig {
+  id                String           @id @default(cuid())
+  indicatorId       String
+  formulaId         String?
+  customComponents  Json?            // Componentes personalizados
+  customConditions  Json?            // Condiciones personalizadas
+  activePeriods     Json?            // Periodos de cálculo activos
+  resultCache       Json?            // Cache de resultados
+  lastCalculated    DateTime?
+  isActive          Boolean          @default(true)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  formula           DynamicFormula?   @relation(fields: [formulaId], references: [id])
+  indicator         Indicator         @relation(fields: [indicatorId], references: [id])
+  formulaResults    FormulaResult[]
+
+  @@unique([indicatorId])
+}
+
+model FormulaResult {
+  id                String           @id @default(cuid())
+  formulaConfigId    String
+  period            String           // YYYY-MM
+  value             Float
+  metadata          Json             // DataPoints, calculationTime, etc.
+  createdAt         DateTime         @default(now())
+
+  formulaConfig     IndicatorFormulaConfig @relation(fields: [formulaConfigId], references: [id])
+
+  @@unique([formulaConfigId, period])
 }

@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
-import { FiX, FiDownload } from 'react-icons/fi'
+import { FiX, FiDownload, FiUpload } from 'react-icons/fi'
 import jsPDF from 'jspdf'
 import 'jspdf/dist/jspdf.umd.min.js'
 import apiClient from '@services/api'
-import { strategicObjectivesService, strategicActionsService, indicatorsService, type Indicator } from '@services/strategicService'
+import { useAuth } from '@context/AuthContext'
+import { type Indicator } from '@services/strategicService'
 import { type IndicatorVariable } from '@services/indicatorVariablesService'
 import { indicatorDataService } from '@services/indicatorDataService'
 
@@ -35,7 +36,7 @@ interface IndicatorDataRecord {
   costCenterCode: string
   year: number
   values: { [key: string]: any }
-  status: 'pending' | 'approved' | 'rejected'
+  status: 'draft' | 'pending' | 'approved' | 'rejected'
   createdAt: string
   updatedAt: string
   createdBy: string
@@ -44,6 +45,9 @@ interface IndicatorDataRecord {
 type ReportTab = 'objectives' | 'actions'
 
 export default function OperatorReportes() {
+  const { user } = useAuth()
+  const userCostCenterId = user?.costCenter?.id || ''
+  
   const [activeTab, setActiveTab] = useState<ReportTab>('objectives')
 
   // Datos principales
@@ -69,6 +73,16 @@ export default function OperatorReportes() {
   const [pdfResponsibleName, setPdfResponsibleName] = useState('')
   const [pdfResponsiblePosition, setPdfResponsiblePosition] = useState('')
   const [exportFormat, setExportFormat] = useState<'csv' | 'excel' | 'pdf'>('csv')
+
+  // Paginación para modal
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage] = useState(20)
+
+  // Estados para escenario crítico (variables sin datos)
+  const [showNoDataModal, setShowNoDataModal] = useState(false)
+  const [noDataReason, setNoDataReason] = useState('')
+  const [noDataFile, setNoDataFile] = useState<File | null>(null)
+  const [submittingReason, setSubmittingReason] = useState(false)
 
   // Cargar planes
   useEffect(() => {
@@ -100,6 +114,18 @@ export default function OperatorReportes() {
     }
   }, [selectedIndicatorId])
 
+  // Limpiar filtros al cambiar de pestaña
+  useEffect(() => {
+    setSelectedObjectiveActionId('')
+    setSelectedIndicatorId('')
+    setObjectives([])
+    setActions([])
+    setIndicators([])
+    setVariables([])
+    setIndicatorData([])
+    // No limpiar selectedPlanId para mantener el plan seleccionado
+  }, [activeTab])
+
   const loadPlans = async () => {
     try {
       const response = await apiClient.get('/plans')
@@ -112,8 +138,8 @@ export default function OperatorReportes() {
 
   const loadObjectives = async () => {
     try {
-      const data = await strategicObjectivesService.getAll()
-      setObjectives(Array.isArray(data) ? data : [])
+      const response = await apiClient.get(`/strategic-objectives/plan/${selectedPlanId}?costCenterId=${userCostCenterId}`)
+      setObjectives(Array.isArray(response.data) ? response.data : [])
       setSelectedObjectiveActionId('')
       setSelectedIndicatorId('')
       setVariables([])
@@ -125,8 +151,8 @@ export default function OperatorReportes() {
 
   const loadActions = async () => {
     try {
-      const data = await strategicActionsService.getAll()
-      setActions(Array.isArray(data) ? data : [])
+      const response = await apiClient.get(`/strategic-actions/plan/${selectedPlanId}?costCenterId=${userCostCenterId}`)
+      setActions(Array.isArray(response.data) ? response.data : [])
       setSelectedObjectiveActionId('')
       setSelectedIndicatorId('')
       setVariables([])
@@ -140,9 +166,11 @@ export default function OperatorReportes() {
     try {
       let indicatorsData: Indicator[] = []
       if (activeTab === 'objectives') {
-        indicatorsData = await indicatorsService.getByObjective(selectedObjectiveActionId)
+        const response = await apiClient.get(`/strategic-objectives/${selectedObjectiveActionId}/indicators?costCenterId=${userCostCenterId}`)
+        indicatorsData = response.data
       } else {
-        indicatorsData = await indicatorsService.getByAction(selectedObjectiveActionId)
+        const response = await apiClient.get(`/strategic-actions/${selectedObjectiveActionId}/indicators?costCenterId=${userCostCenterId}`)
+        indicatorsData = response.data
       }
       setIndicators(Array.isArray(indicatorsData) ? indicatorsData : [])
       setSelectedIndicatorId('')
@@ -180,9 +208,17 @@ export default function OperatorReportes() {
     setSelectedVariable(variable)
     setReportDateFrom('')
     setReportDateTo('')
+    setCurrentPage(1) // Reiniciar paginación
     setShowReportModal(true)
   }
 
+  // Calcular datos paginados
+  const paginatedIndicatorData = indicatorData.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  )
+
+  
   const handleGenerateReport = async () => {
     if (!selectedVariable || !reportDateFrom || !reportDateTo) {
       alert('Debe seleccionar un rango de fechas')
@@ -190,6 +226,14 @@ export default function OperatorReportes() {
     }
 
     await loadIndicatorData(selectedVariable.id, reportDateFrom, reportDateTo)
+
+    // Verificar si hay datos
+    if (indicatorData.length === 0) {
+      // Mostrar modal para ingresar motivo
+      setShowReportModal(false)
+      setShowNoDataModal(true)
+      return
+    }
 
     if (exportFormat === 'pdf') {
       setShowReportModal(false)
@@ -208,6 +252,57 @@ export default function OperatorReportes() {
     performExport('pdf')
     setShowPDFModal(false)
     setShowReportModal(false)
+  }
+
+  const handleSubmitNoDataReason = async () => {
+    if (!noDataReason.trim()) {
+      alert('Debe ingresar un motivo o justificación')
+      return
+    }
+    
+    if (!noDataFile) {
+      alert('Debe adjuntar un archivo PDF como sustento')
+      return
+    }
+
+    if (!noDataFile.name.toLowerCase().endsWith('.pdf')) {
+      alert('El archivo adjunto debe estar en formato PDF')
+      return
+    }
+
+    setSubmittingReason(true)
+    
+    try {
+      // Crear FormData para enviar archivo y motivo
+      const formData = new FormData()
+      formData.append('variableId', selectedVariable!.id)
+      formData.append('reason', noDataReason)
+      formData.append('periodFrom', reportDateFrom)
+      formData.append('periodTo', reportDateTo)
+      formData.append('file', noDataFile)
+      formData.append('costCenterId', userCostCenterId!)
+
+      // Enviar al backend
+      const response = await apiClient.post('/indicator-data/exception', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      })
+
+      if (response.data.success) {
+        alert('Motivo enviado exitosamente')
+        setShowNoDataModal(false)
+        setNoDataReason('')
+        setNoDataFile(null)
+      } else {
+        alert('Error al enviar el motivo: ' + (response.data.message || 'Error desconocido'))
+      }
+    } catch (error) {
+      console.error('Error sending no data reason:', error)
+      alert('Error al enviar el motivo. Por favor intente nuevamente.')
+    } finally {
+      setSubmittingReason(false)
+    }
   }
 
   const performExport = (format: 'csv' | 'excel' | 'pdf') => {
@@ -301,7 +396,7 @@ export default function OperatorReportes() {
         'Registrado por'
       ]
 
-      const tableData = indicatorData.map(record => [
+      const tableData = paginatedIndicatorData.map(record => [
         selectedVariable.code,
         ...selectedVariable.fields.map(field => {
           const value = record.values[field.name]
@@ -444,11 +539,19 @@ export default function OperatorReportes() {
                   ? 'Seleccionar objetivo' 
                   : 'Seleccionar acción'}
               </option>
-              {items.map(item => (
-                <option key={item.id} value={item.id}>
-                  {item.code} - {item.statement}
-                </option>
-              ))}
+              {items
+                .filter(item => {
+                  if (activeTab === 'objectives') {
+                    return !selectedObjectiveActionId || item.id === selectedObjectiveActionId
+                  } else {
+                    return !selectedObjectiveActionId || (item as any).objectiveId === selectedObjectiveActionId
+                  }
+                })
+                .map(item => (
+                  <option key={item.id} value={item.id}>
+                    {item.code} - {item.statement}
+                  </option>
+                ))}
             </select>
           </div>
 
@@ -725,6 +828,100 @@ export default function OperatorReportes() {
                 className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
               >
                 Descargar PDF
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal para escenario crítico - Variables sin datos */}
+      {showNoDataModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-semibold text-neutral-900">Sin Datos en el Período</h3>
+              <button
+                onClick={() => setShowNoDataModal(false)}
+                className="text-neutral-400 hover:text-neutral-600"
+              >
+                <FiX className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4 mb-6">
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                <p className="text-sm text-amber-800">
+                  <strong>Atención:</strong> No se encontraron datos registrados para la variable 
+                  <span className="font-semibold"> {selectedVariable?.name}</span> en el período 
+                  <span className="font-semibold"> {reportDateFrom} a {reportDateTo}</span>.
+                </p>
+                <p className="text-sm text-amber-700 mt-2">
+                  Por favor, ingrese una justificación y adjunte un PDF como sustento.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-2">
+                  Motivo o Justificación <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  value={noDataReason}
+                  onChange={(e) => setNoDataReason(e.target.value)}
+                  placeholder="Describa el motivo por el cual no se registraron datos en este período..."
+                  rows={4}
+                  className="w-full px-4 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-2">
+                  Archivo de Sustento <span className="text-red-500">*</span>
+                </label>
+                <div className="border-2 border-dashed border-neutral-300 rounded-lg p-4">
+                  <input
+                    type="file"
+                    accept=".pdf"
+                    onChange={(e) => setNoDataFile(e.target.files?.[0] || null)}
+                    className="hidden"
+                    id="no-data-file"
+                  />
+                  <label
+                    htmlFor="no-data-file"
+                    className="cursor-pointer flex flex-col items-center"
+                  >
+                    <FiUpload className="w-8 h-8 text-neutral-400 mb-2" />
+                    <span className="text-sm text-neutral-600">
+                      {noDataFile ? noDataFile.name : 'Haga clic para seleccionar un archivo PDF'}
+                    </span>
+                    <span className="text-xs text-neutral-500 mt-1">
+                      Máximo 10MB, formato PDF únicamente
+                    </span>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3">
+              <button
+                onClick={() => setShowNoDataModal(false)}
+                className="px-4 py-2 bg-neutral-100 text-neutral-700 rounded-lg hover:bg-neutral-200"
+                disabled={submittingReason}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSubmitNoDataReason}
+                className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={submittingReason}
+              >
+                {submittingReason ? (
+                  <span className="flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Enviando...
+                  </span>
+                ) : (
+                  'Enviar Motivo'
+                )}
               </button>
             </div>
           </div>

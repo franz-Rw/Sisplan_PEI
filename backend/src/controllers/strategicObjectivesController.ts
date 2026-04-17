@@ -5,18 +5,93 @@ export const strategicObjectivesController = {
   // Obtener todos los objetivos estratégicos
   getAll: async (req: Request, res: Response) => {
     try {
-      const { planId, search } = req.query
+      // Leer planId desde params (/plan/:planId) o query (?planId=...)
+      const planId = (req.params.planId as string) || (req.query.planId as string)
+      const { search, costCenterId } = req.query
       
-      const objectives = await prisma.strategicObjective.findMany({
-        where: {
-          ...(planId && { planId: planId as string }),
-          ...(search && {
-            OR: [
-              { code: { contains: search as string, mode: 'insensitive' } },
-              { statement: { contains: search as string, mode: 'insensitive' } }
-            ]
-          })
-        },
+      let objectives
+      
+      if (costCenterId) {
+        // Filtrar objetivos por indicadores asociados al centro de costo
+        objectives = await prisma.strategicObjective.findMany({
+          where: {
+            ...(planId && { planId: planId as string }),
+            indicators: {
+              some: {
+                responsibleId: costCenterId as string
+              }
+            },
+            ...(search && {
+              OR: [
+                { code: { contains: search as string, mode: 'insensitive' } },
+                { statement: { contains: search as string, mode: 'insensitive' } }
+              ]
+            })
+          },
+          include: {
+            responsible: {
+              select: { id: true, code: true, description: true }
+            },
+            indicators: {
+              where: {
+                responsibleId: costCenterId as string
+              },
+              select: {
+                id: true,
+                code: true,
+                statement: true
+              }
+            },
+            _count: {
+              select: { 
+                indicators: {
+                  where: {
+                    responsibleId: costCenterId as string
+                  }
+                }
+              }
+            }
+          },
+          orderBy: { code: 'asc' }
+        })
+      } else {
+        // Sin filtro de centro de costo - mostrar todos los objetivos
+        objectives = await prisma.strategicObjective.findMany({
+          where: {
+            ...(planId && { planId: planId as string }),
+            ...(search && {
+              OR: [
+                { code: { contains: search as string, mode: 'insensitive' } },
+                { statement: { contains: search as string, mode: 'insensitive' } }
+              ]
+            })
+          },
+          include: {
+            responsible: {
+              select: { id: true, code: true, description: true }
+            },
+            _count: {
+              select: { indicators: true }
+            }
+          },
+          orderBy: { code: 'asc' }
+        })
+      }
+      
+      return res.json(objectives)
+    } catch (error) {
+      console.error('Error al obtener objetivos:', error)
+      return res.status(500).json({ error: 'Error al obtener objetivos' })
+    }
+  },
+
+  // Obtener un objetivo estratégico por ID
+  getById: async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params
+
+      const objective = await prisma.strategicObjective.findUnique({
+        where: { id },
         include: {
           responsible: {
             select: { id: true, code: true, description: true }
@@ -24,14 +99,17 @@ export const strategicObjectivesController = {
           _count: {
             select: { indicators: true }
           }
-        },
-        orderBy: { code: 'asc' }
+        }
       })
-      
-      return res.json(objectives)
+
+      if (!objective) {
+        return res.status(404).json({ error: 'Objetivo no encontrado' })
+      }
+
+      return res.json(objective)
     } catch (error) {
-      console.error('Error al obtener objetivos:', error)
-      return res.status(500).json({ error: 'Error al obtener objetivos' })
+      console.error('Error al obtener objetivo:', error)
+      return res.status(500).json({ error: 'Error al obtener objetivo' })
     }
   },
 

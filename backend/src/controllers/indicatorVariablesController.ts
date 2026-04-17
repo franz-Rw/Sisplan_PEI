@@ -297,5 +297,137 @@ export const indicatorVariablesController = {
       console.error('Error al eliminar variable:', error)
       return res.status(500).json({ error: 'Error al eliminar variable' })
     }
+  },
+
+  // Obtener opciones para listas en cascada
+  getCascadeOptions: async (req: Request, res: Response) => {
+    try {
+      const { table, valueField, labelField, parentField, parentValue } = req.query
+
+      if (!table || !valueField || !labelField) {
+        return res.status(400).json({ 
+          error: 'Se requieren los parámetros: table, valueField, labelField' 
+        })
+      }
+
+      // Construir consulta dinámica
+      let query = `
+        SELECT ${valueField} as value, ${labelField} as label 
+        FROM ${table}
+        WHERE 1=1
+      `
+      
+      const params: any[] = []
+
+      // Si hay campo padre y valor padre, agregar filtro
+      if (parentField && parentValue) {
+        query += ` AND ${parentField} = $${params.length + 1}`
+        params.push(parentValue)
+      }
+
+      // Ordenar por etiqueta
+      query += ` ORDER BY ${labelField}`
+
+      // Ejecutar consulta (usando queryRaw para consultas dinámicas)
+      const options = await prisma.$queryRawUnsafe(query, ...params)
+
+      return res.json(options)
+    } catch (error) {
+      console.error('Error al obtener opciones de cascada:', error)
+      return res.status(500).json({ error: 'Error al obtener opciones' })
+    }
+  },
+
+  // Obtener valores de autocompletado
+  getAutocompleteValues: async (_req: Request, res: Response) => {
+    try {
+      // Temporalmente deshabilitado - tablas no existen en la base de datos
+      return res.json([]) // Retornar array vacío temporalmente
+    } catch (error) {
+      console.error('Error al obtener valores de autocompletado:', error)
+      return res.status(500).json({ error: 'Error al obtener valores de autocompletado' })
+    }
+  },
+
+  // Crear valores de autocompletado - Temporalmente deshabilitado
+  createAutocompleteValue: async (_req: Request, res: Response) => {
+    try {
+      return res.status(501).json({ error: 'Función temporalmente deshabilitada' })
+    } catch (error) {
+      console.error('Error al crear valor de autocompletado:', error)
+      return res.status(500).json({ error: 'Error al crear valor de autocompletado' })
+    }
+  },
+
+  // Actualizar valor de autocompletado - Temporalmente deshabilitado
+  updateAutocompleteValue: async (_req: Request, res: Response) => {
+    try {
+      return res.status(501).json({ error: 'Función temporalmente deshabilitada' })
+    } catch (error) {
+      console.error('Error al actualizar valor de autocompletado:', error)
+      return res.status(500).json({ error: 'Error al actualizar valor de autocompletado' })
+    }
+  },
+
+  // Eliminar valor de autocompletado - Temporalmente deshabilitado
+  deleteAutocompleteValue: async (_req: Request, res: Response) => {
+    try {
+      return res.status(501).json({ error: 'Función temporalmente deshabilitada' })
+    } catch (error) {
+      console.error('Error al eliminar valor de autocompletado:', error)
+      return res.status(500).json({ error: 'Error al eliminar valor de autocompletado' })
+    }
+  },
+
+  // Obtener valores de lista dependiente para una variable
+  getDependentListValues: async (_req: Request, res: Response) => {
+    try {
+      // Temporalmente deshabilitado - tablas no existen en la base de datos
+      return res.json([]) // Retornar array vacío temporalmente
+    } catch (error) {
+      console.error('Error al obtener valores de lista dependiente:', error)
+      return res.status(500).json({ error: 'Error al obtener valores de lista dependiente' })
+    }
+  },
+
+  // Crear valores de lista dependiente - Temporalmente deshabilitado
+  createDependentListValues: async (_req: Request, res: Response) => {
+    try {
+      return res.status(501).json({ error: 'Función temporalmente deshabilitada' })
+    } catch (error) {
+      console.error('Error al crear valores de lista dependiente:', error)
+      return res.status(500).json({ error: 'Error al crear valores de lista dependiente' })
+    }
+  },
+
+  // Actualizar valor de lista dependiente - Temporalmente deshabilitado
+  updateDependentListValue: async (_req: Request, res: Response) => {
+    try {
+      return res.status(501).json({ error: 'Función temporalmente deshabilitada' })
+    } catch (error) {
+      console.error('Error al actualizar valor de lista dependiente:', error)
+      return res.status(500).json({ error: 'Error al actualizar valor de lista dependiente' })
+    }
+  },
+
+  // Eliminar valor de lista dependiente - Temporalmente deshabilitado
+  deleteDependentListValue: async (_req: Request, res: Response) => {
+    try {
+      return res.status(501).json({ error: 'Función temporalmente deshabilitada' })
+    } catch (error) {
+      console.error('Error al eliminar valor de lista dependiente:', error)
+      return res.status(500).json({ error: 'Error al eliminar valor de lista dependiente' })
+    }
+  },
+
+  // Obtener árbol jerárquico de valores
+  getDependentListTree: async (_req: Request, res: Response) => {
+    try {
+      // Temporalmente deshabilitado - tablas no existen en la base de datos
+      return res.json([]) // Retornar array vacío temporalmente
+    } catch (error) {
+      console.error('Error al obtener árbol de lista dependiente:', error)
+      return res.status(500).json({ error: 'Error al obtener árbol' })
+    }
   }
 }

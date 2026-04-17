@@ -5,18 +5,99 @@ export const strategicActionsController = {
   // Obtener todas las acciones estratégicas
   getAll: async (req: Request, res: Response) => {
     try {
-      const { planId, search } = req.query
+      // Leer planId desde params (/plan/:planId) o query (?planId=...)
+      const planId = (req.params.planId as string) || (req.query.planId as string)
+      const { search, costCenterId } = req.query
       
-      const actions = await prisma.strategicAction.findMany({
-        where: {
-          ...(planId && { planId: planId as string }),
-          ...(search && {
-            OR: [
-              { code: { contains: search as string, mode: 'insensitive' } },
-              { statement: { contains: search as string, mode: 'insensitive' } }
-            ]
-          })
-        },
+      let actions
+      
+      if (costCenterId) {
+        // Filtrar acciones por indicadores asociados al centro de costo
+        actions = await prisma.strategicAction.findMany({
+          where: {
+            ...(planId && { planId: planId as string }),
+            indicators: {
+              some: {
+                responsibleId: costCenterId as string
+              }
+            },
+            ...(search && {
+              OR: [
+                { code: { contains: search as string, mode: 'insensitive' } },
+                { statement: { contains: search as string, mode: 'insensitive' } }
+              ]
+            })
+          },
+          include: {
+            objective: {
+              select: { id: true, code: true, statement: true }
+            },
+            responsible: {
+              select: { id: true, code: true, description: true }
+            },
+            indicators: {
+              where: {
+                responsibleId: costCenterId as string
+              },
+              select: {
+                id: true,
+                code: true,
+                statement: true
+              }
+            },
+            _count: {
+              select: { 
+                indicators: {
+                  where: {
+                    responsibleId: costCenterId as string
+                  }
+                }
+              }
+            }
+          },
+          orderBy: { code: 'asc' }
+        })
+      } else {
+        // Sin filtro de centro de costo - mostrar todas las acciones
+        actions = await prisma.strategicAction.findMany({
+          where: {
+            ...(planId && { planId: planId as string }),
+            ...(search && {
+              OR: [
+                { code: { contains: search as string, mode: 'insensitive' } },
+                { statement: { contains: search as string, mode: 'insensitive' } }
+              ]
+            })
+          },
+          include: {
+            objective: {
+              select: { id: true, code: true, statement: true }
+            },
+            responsible: {
+              select: { id: true, code: true, description: true }
+            },
+            _count: {
+              select: { indicators: true }
+            }
+          },
+          orderBy: { code: 'asc' }
+        })
+      }
+
+      return res.json(actions)
+    } catch (error) {
+      console.error('Error al obtener acciones:', error)
+      return res.status(500).json({ error: 'Error al obtener acciones' })
+    }
+  },
+
+  // Obtener una acción estratégica por ID
+  getById: async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params
+
+      const action = await prisma.strategicAction.findUnique({
+        where: { id },
         include: {
           objective: {
             select: { id: true, code: true, statement: true }
@@ -27,14 +108,17 @@ export const strategicActionsController = {
           _count: {
             select: { indicators: true }
           }
-        },
-        orderBy: { code: 'asc' }
+        }
       })
 
-      return res.json(actions)
+      if (!action) {
+        return res.status(404).json({ error: 'Acción no encontrada' })
+      }
+
+      return res.json(action)
     } catch (error) {
-      console.error('Error al obtener acciones:', error)
-      return res.status(500).json({ error: 'Error al obtener acciones' })
+      console.error('Error al obtener acción:', error)
+      return res.status(500).json({ error: 'Error al obtener acción' })
     }
   },
 

@@ -60,6 +60,27 @@ export const costCentersService = {
     }
   },
 
+  // Obtener un centro de costo por ID
+  getById: async (id: string): Promise<CostCenter> => {
+    try {
+      if (!id) {
+        throw new Error('ID de centro de costo es requerido')
+      }
+      
+      const response = await apiClient.get(`/cost-centers/${id}`)
+      return response.data
+    } catch (error) {
+      console.error('Error getting cost center by ID:', error)
+      
+      // Si es un 404, lanzar un error más específico
+      if (error instanceof Error && error.message.includes('404')) {
+        throw new Error('Centro de costo no encontrado')
+      }
+      
+      throw error
+    }
+  },
+
   // Obtener usuarios para asignación
   getUsersForAssignment: async (): Promise<User[]> => {
     const response = await apiClient.get('/cost-centers/users')

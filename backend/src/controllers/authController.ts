@@ -3,6 +3,13 @@ import { AuthRequest } from '../middleware/auth'
 import { prisma } from '../config/database'
 import { hashPassword, generateToken, comparePassword } from '../utils/auth'
 
+const resolveUserCostCenter = <T extends {
+  costCenter?: { id: string; code: string; description: string | null } | null
+  assignedCostCenter?: { id: string; code: string; description: string | null } | null
+}>(
+  user: T | null | undefined
+) => user?.costCenter || user?.assignedCostCenter || undefined
+
 export const authController = {
   register: async (req: AuthRequest, res: Response) => {
     try {
@@ -73,6 +80,27 @@ export const authController = {
       // Buscar usuario
       const user = await prisma.user.findUnique({
         where: { email },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          role: true,
+          password: true,
+          costCenter: {
+            select: {
+              id: true,
+              code: true,
+              description: true,
+            },
+          },
+          assignedCostCenter: {
+            select: {
+              id: true,
+              code: true,
+              description: true,
+            },
+          },
+        },
       })
 
       if (!user) {
@@ -99,6 +127,7 @@ export const authController = {
           email: user.email,
           name: user.name,
           role: user.role,
+          costCenter: resolveUserCostCenter(user),
         },
         token,
       })
@@ -121,7 +150,20 @@ export const authController = {
           email: true,
           name: true,
           role: true,
-          costCenter: true,
+          costCenter: {
+            select: {
+              id: true,
+              code: true,
+              description: true,
+            },
+          },
+          assignedCostCenter: {
+            select: {
+              id: true,
+              code: true,
+              description: true,
+            },
+          },
           createdAt: true,
         },
       })
@@ -130,7 +172,10 @@ export const authController = {
         return res.status(404).json({ error: 'Usuario no encontrado' })
       }
 
-      return res.json(user)
+      return res.json({
+        ...user,
+        costCenter: resolveUserCostCenter(user),
+      })
     } catch (error) {
       console.error('Error al obtener perfil:', error)
       return res.status(500).json({ error: 'Error al obtener perfil' })

@@ -2,20 +2,18 @@ import { useState, useEffect } from 'react'
 import { FiCheckCircle } from 'react-icons/fi'
 import { plansService, StrategicPlan } from '@services/plansService'
 import { indicatorDataService, IndicatorDataRecord } from '@services/indicatorDataService'
-import { costCentersService, CostCenter } from '@services/costCentersService'
-import { strategicObjectivesService, StrategicObjective } from '@services/strategicService'
-import { strategicActionsService, StrategicAction } from '@services/strategicService'
-import { indicatorsService, Indicator } from '@services/strategicService'
-import { indicatorVariablesService, IndicatorVariable } from '@services/indicatorVariablesService'
+import { costCentersService } from '@services/costCentersService'
+import { strategicObjectivesService } from '@services/strategicService'
+import { strategicActionsService } from '@services/strategicService'
 
 // Interfaces
 interface VariableIndicator {
   id: string
-  costCenter: CostCenter
-  objective: StrategicObjective
-  action?: StrategicAction
-  indicator: Indicator
-  variable: IndicatorVariable
+  costCenter: any
+  objective: any
+  action?: any
+  indicator: any
+  variable: any
   plan: StrategicPlan
   pendingRecords: IndicatorDataRecord[]
 }
@@ -28,8 +26,66 @@ interface ApprovalModalData {
   itemsPerPage: number
 }
 
+const MODAL_PAGE_SIZES = [10, 15, 20, 30, 50, 70, 100]
+
+const isRecordObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value)
+
+const formatFieldValue = (value: unknown): string => {
+  if (value === null || value === undefined || value === '') {
+    return '-'
+  }
+
+  if (typeof value === 'string') {
+    return value
+  }
+
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value.toLocaleString('es-PE') : String(value)
+  }
+
+  if (typeof value === 'boolean') {
+    return value ? 'Sí' : 'No'
+  }
+
+  if (Array.isArray(value)) {
+    return value.map(formatFieldValue).join(', ')
+  }
+
+  if (isRecordObject(value)) {
+    const latitude = value.latitude
+    const longitude = value.longitude
+    if ((typeof latitude === 'number' || typeof latitude === 'string') && (typeof longitude === 'number' || typeof longitude === 'string')) {
+      return `Lat: ${latitude} | Long: ${longitude}`
+    }
+
+    return Object.entries(value)
+      .map(([key, entryValue]) => `${key}: ${formatFieldValue(entryValue)}`)
+      .join(', ')
+  }
+
+  return String(value)
+}
+
+const getRecordFieldValue = (record: IndicatorDataRecord, fieldName: string) => {
+  if (!isRecordObject(record.values)) {
+    return '-'
+  }
+
+  return formatFieldValue(record.values[fieldName])
+}
+
 export default function Seguimiento() {
   const [activeTab, setActiveTab] = useState<'objectives' | 'actions'>('objectives')
+  
+  // Función para formatear código de variable
+  const formatVariableCode = (variableCode?: string, variableId?: string) => {
+    if (variableCode && variableCode.trim()) {
+      return variableCode
+    }
+
+    return variableId || 'SIN CÓDIGO'
+  }
   
   // Estados principales
   const [plans, setPlans] = useState<StrategicPlan[]>([])
@@ -80,6 +136,16 @@ export default function Seguimiento() {
     try {
       const plansData = await plansService.getAll()
       setPlans(plansData)
+      
+      // Seleccionar automáticamente el primer plan si no hay ninguno seleccionado
+      if (plansData.length > 0) {
+        if (!selectedPlanObjectives) {
+          setSelectedPlanObjectives(plansData[0].id)
+        }
+        if (!selectedPlanActions) {
+          setSelectedPlanActions(plansData[0].id)
+        }
+      }
     } catch (error) {
       console.error('Error loading plans:', error)
     }
@@ -92,6 +158,7 @@ export default function Seguimiento() {
     try {
       // Obtener todos los datos pendientes
       const pendingData = await indicatorDataService.getAll({ status: 'pending' })
+      console.log('DEBUG Seguimiento admin: Datos pendientes obtenidos:', pendingData.length)
       
       // Filtrar por plan y tipo (objetivos o acciones)
       const filteredData = pendingData.filter(record => {
@@ -110,9 +177,12 @@ export default function Seguimiento() {
           return planMatches && indicator.actionId
         }
       })
+      
+      console.log('DEBUG Seguimiento admin: Datos filtrados por plan y tipo:', filteredData.length)
 
       // Agrupar por variable y crear estructura de VariableIndicator
       const variableMap = new Map<string, VariableIndicator>()
+      let skippedCount = 0
       
       for (const record of filteredData) {
         const variableId = record.variableId
@@ -121,12 +191,60 @@ export default function Seguimiento() {
           // Obtener información completa - ahora el indicador está incluido en la respuesta
           const variable = record.variable
           const indicator = variable?.indicator
-          const objective = indicator ? await strategicObjectivesService.getById(indicator.objectiveId) : null
-          const action = indicator?.actionId ? await strategicActionsService.getById(indicator.actionId) : undefined
-          const costCenter = record.costCenter || { id: 'N/A', code: 'N/A', description: 'Sin centro de costo' }
-          const plan = indicator ? await plansService.getById(indicator.planId) : null
+          let objective = null
+          let action = undefined
+          
+          try {
+            if (indicator && indicator.objectiveId) {
+              objective = await strategicObjectivesService.getById(indicator.objectiveId)
+            }
+          } catch (err) {
+            console.warn('Error cargando objetivo:', err, 'Para ID:', indicator?.objectiveId)
+          }
+          
+          try {
+            if (indicator?.actionId) {
+              action = await strategicActionsService.getById(indicator.actionId)
+            }
+          } catch (err) {
+            console.warn('Error cargando acción:', err, 'Para ID:', indicator?.actionId)
+          }
+          
+          // Validar que costCenterId no sea null antes de hacer la petición
+          let costCenter = record.costCenter
+          if (!costCenter && record.costCenterId) {
+            try {
+              costCenter = await costCentersService.getById(record.costCenterId)
+            } catch (error) {
+              console.warn('Error obteniendo centro de costo:', error)
+              // Usar el costCenter que viene del backend si existe, o uno por defecto
+              costCenter = record.costCenter || {
+                id: 'unknown', 
+                code: 'SIN ASIGNAR', 
+                description: 'Centro de costo no especificado'
+              }
+            }
+          } else if (!costCenter && !record.costCenterId) {
+            console.warn('Registro sin centro de costo asignado:', record.id)
+            // Usar el costCenter que viene del backend si existe, o uno por defecto
+            costCenter = record.costCenter || {
+              id: 'unknown', 
+              code: 'SIN ASIGNAR', 
+              description: 'Centro de costo no especificado'
+            }
+          }
+          
+          let plan = null
+          try {
+            if (indicator) {
+              plan = await plansService.getById(indicator.planId || '')
+            }
+          } catch (err) {
+            console.warn('Error cargando plan:', err, 'Para ID:', indicator?.planId)
+          }
 
-          if (variable && indicator && objective && plan) {
+          // VALIDACIÓN MEJORADA: permitir registros incluso sin objetivo o acción cargados
+          if (variable && indicator && plan) {
             variableMap.set(variableId, {
               id: variableId,
               costCenter,
@@ -137,6 +255,10 @@ export default function Seguimiento() {
               plan,
               pendingRecords: []
             })
+            console.log('DEBUG: Variable añadida:', variableId, {objective: !!objective, action: !!action})
+          } else {
+            skippedCount++
+            console.warn('DEBUG: Variable SKIPPED - Missing:', {variable: !!variable, indicator: !!indicator, plan: !!plan, objective: !!objective})
           }
         }
         
@@ -147,6 +269,7 @@ export default function Seguimiento() {
         }
       }
       
+      console.log('DEBUG Seguimiento admin: Variables mapeadas:', variableMap.size, 'Saltadas:', skippedCount)
       setVariableIndicators(Array.from(variableMap.values()))
     } catch (error) {
       console.error('Error loading variable indicators:', error)
@@ -264,6 +387,8 @@ export default function Seguimiento() {
     setApprovalModal(prev => ({ ...prev, itemsPerPage, currentPage: 1 }))
   }
 
+  const modalVariable = approvalModal.variableIndicator?.variable
+
   return (
     <div className="p-6">
       {/* Header */}
@@ -366,45 +491,66 @@ export default function Seguimiento() {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {variableIndicators.map(variableIndicator => (
                     <tr key={variableIndicator.id}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        <div>
+                      <td className="px-6 py-4 align-top text-sm text-gray-900">
+                        <div className="max-w-[13rem]">
                           <div className="font-medium">{variableIndicator.costCenter.code}</div>
-                          <div className="text-gray-500">{variableIndicator.costCenter.description}</div>
+                          <div className="mt-1 text-xs leading-5 text-gray-500 break-words">
+                            {variableIndicator.costCenter.description || 'Centro de costo asignado'}
+                          </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        <div>
-                          <div className="font-medium">{variableIndicator.objective.code}</div>
-                          <div className="text-gray-500">{variableIndicator.objective.name}</div>
+                      <td className="px-6 py-4 align-top text-sm text-gray-900">
+                        <div className="max-w-[20rem]">
+                          {variableIndicator.objective ? (
+                            <>
+                              <div className="font-medium">{variableIndicator.objective.code}</div>
+                              <div className="mt-1 text-xs leading-5 text-gray-500 break-words">
+                                {variableIndicator.objective.statement}
+                              </div>
+                            </>
+                          ) : (
+                            <div className="text-gray-400 italic">-</div>
+                          )}
                         </div>
                       </td>
                       {activeTab === 'actions' && variableIndicator.action && (
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          <div>
+                        <td className="px-6 py-4 align-top text-sm text-gray-900">
+                          <div className="max-w-[20rem]">
                             <div className="font-medium">{variableIndicator.action.code}</div>
-                            <div className="text-gray-500">{variableIndicator.action.name}</div>
+                            <div className="mt-1 text-xs leading-5 text-gray-500 break-words">
+                              {variableIndicator.action.statement}
+                            </div>
                           </div>
                         </td>
                       )}
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        <div>
+                      <td className="px-6 py-4 align-top text-sm text-gray-900">
+                        <div className="max-w-[20rem]">
                           <div className="font-medium">{variableIndicator.indicator.code}</div>
-                          <div className="text-gray-500">{variableIndicator.indicator.name}</div>
+                          <div className="mt-1 text-xs leading-5 text-gray-500 break-words">
+                            {variableIndicator.indicator.statement}
+                          </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        <div>
-                          <div className="font-medium">{variableIndicator.variable.id}</div>
-                          <div className="text-gray-500">{variableIndicator.variable.name}</div>
+                      <td className="px-6 py-4 align-top text-sm text-gray-900">
+                        <div className="max-w-[16rem]">
+                          <div className="font-medium">
+                            {formatVariableCode(variableIndicator.variable.code, variableIndicator.variable.id)}
+                          </div>
+                          <div className="mt-1 text-xs leading-5 text-gray-500 break-words">
+                            {variableIndicator.variable.name}
+                          </div>
+                          <div className="mt-2 inline-flex rounded-full bg-amber-50 px-2 py-1 text-xs font-medium text-amber-700">
+                            {variableIndicator.pendingRecords.length} pendiente(s)
+                          </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      <td className="px-6 py-4 align-top text-sm text-gray-900">
                         <button
                           onClick={() => handleApproveClick(variableIndicator)}
                           className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
                         >
                           <FiCheckCircle className="h-4 w-4 mr-2" />
-                          Aprobar
+                          Ver y validar
                         </button>
                       </td>
                     </tr>
@@ -420,11 +566,11 @@ export default function Seguimiento() {
       {approvalModal.isOpen && approvalModal.variableIndicator && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
           <div className="relative top-20 mx-auto p-5 border w-11/12 max-w-6xl shadow-lg rounded-md bg-white">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-medium text-gray-900">
-                Datos de la variable: {approvalModal.variableIndicator.variable.id} - {approvalModal.variableIndicator.variable.name}
-              </h3>
+              {/* Modal Header */}
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-medium text-gray-900">
+                  Datos de la variable: {formatVariableCode(modalVariable?.code, modalVariable?.id)} - {modalVariable?.name}
+                </h3>
               <button
                 onClick={() => setApprovalModal({ isOpen: false, variableIndicator: null, selectedRecords: new Set(), currentPage: 1, itemsPerPage: 10 })}
                 className="text-gray-400 hover:text-gray-600"
@@ -453,7 +599,7 @@ export default function Seguimiento() {
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Año
                       </th>
-                      {approvalModal.variableIndicator.variable.fields.map(field => (
+                      {modalVariable?.fields.map((field: any) => (
                         <th key={field.id} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           {field.label || field.name}
                         </th>
@@ -472,14 +618,16 @@ export default function Seguimiento() {
                           />
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {record.costCenter?.code || 'N/A'}
+                          {record.costCenter?.code || record.costCenterCode || 'N/A'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           {record.year}
                         </td>
-                        {approvalModal.variableIndicator.variable.fields.map(field => (
-                          <td key={field.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {record.values[field.name] || '-'}
+                        {modalVariable?.fields.map((field: any) => (
+                          <td key={field.id} className="px-6 py-4 text-sm text-gray-900">
+                            <div className="max-w-[14rem] break-words leading-5">
+                              {getRecordFieldValue(record, field.name)}
+                            </div>
                           </td>
                         ))}
                       </tr>
@@ -496,16 +644,14 @@ export default function Seguimiento() {
                   <label className="text-sm text-gray-700">Mostrar:</label>
                   <select
                     value={approvalModal.itemsPerPage}
-                    onChange={(e) => handleItemsPerPageChange(parseInt(e.target.value))}
+                    onChange={(e) => handleItemsPerPageChange(parseInt(e.target.value, 10))}
                     className="px-3 py-1 border border-gray-300 rounded text-sm"
                   >
-                    <option value={10}>10</option>
-                    <option value={15}>15</option>
-                    <option value={20}>20</option>
-                    <option value={30}>30</option>
-                    <option value={50}>50</option>
-                    <option value={70}>70</option>
-                    <option value={100}>100</option>
+                    {MODAL_PAGE_SIZES.map(size => (
+                      <option key={size} value={size}>
+                        {size}
+                      </option>
+                    ))}
                   </select>
                 </div>
 

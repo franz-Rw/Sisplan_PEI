@@ -12,7 +12,8 @@ import {
   FiChevronRight,
   FiLogOut,
   FiFileText,
-  FiBarChart2
+  FiBarChart2,
+  FiAlertTriangle
 } from 'react-icons/fi'
 
 interface MenuItem {
@@ -74,10 +75,53 @@ export default function AdminLayout() {
       path: '/admin/seguimiento'
     },
     {
+      id: 'reports',
+      label: 'Reportes',
+      icon: <FiFileText className="w-5 h-5" />,
+      children: [
+        {
+          id: 'reports-plans',
+          label: 'Planes',
+          icon: <FiTarget className="w-4 h-4" />,
+          path: '/admin/reportes/planes'
+        },
+        {
+          id: 'reports-variables',
+          label: 'Variables',
+          icon: <FiFileText className="w-4 h-4" />,
+          path: '/admin/reportes/variables'
+        },
+        {
+          id: 'reports-users',
+          label: 'Usuarios',
+          icon: <FiUsers className="w-4 h-4" />,
+          path: '/admin/reportes/usuarios'
+        },
+        {
+          id: 'reports-cost-centers',
+          label: 'Centros de Costos',
+          icon: <FiMapPin className="w-4 h-4" />,
+          path: '/admin/reportes/centros-costo'
+        }
+      ]
+    },
+    {
       id: 'variables',
       label: 'Variables',
       icon: <FiBarChart2 className="w-5 h-5" />,
       path: '/admin/variables'
+    },
+    {
+      id: 'exceptions',
+      label: 'Control y Seguimiento de Excepciones',
+      icon: <FiAlertTriangle className="w-5 h-5" />,
+      path: '/admin/excepciones'
+    },
+    {
+      id: 'formulas',
+      label: 'Configuración de Fórmulas',
+      icon: <FiSettings className="w-5 h-5" />,
+      path: '/admin/formulas'
     },
     {
       id: 'config',

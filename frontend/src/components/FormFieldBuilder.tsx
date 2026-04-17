@@ -1,5 +1,7 @@
-import { FiPlus, FiMinus, FiTrash2, FiClock, FiMapPin, FiDollarSign, FiCalendar, FiType, FiAlignLeft, FiCheckSquare, FiChevronDown, FiMoreVertical } from 'react-icons/fi'
+import { FiPlus, FiMinus, FiTrash2, FiClock, FiMapPin, FiDollarSign, FiCalendar, FiType, FiAlignLeft, FiCheckSquare, FiChevronDown, FiMoreVertical, FiGitBranch } from 'react-icons/fi'
 import { FormField } from '@services/indicatorVariablesService'
+import ProperMultipleDependentListsConfig from './ProperMultipleDependentListsConfig'
+import RobustCascadeConfig from './RobustCascadeConfig'
 
 interface FormFieldBuilderProps {
   field: FormField
@@ -17,7 +19,10 @@ const FIELD_TYPES = [
   { value: 'textarea', label: 'Párrafo largo', icon: FiAlignLeft },
   { value: 'coordinates', label: 'Coordenadas', icon: FiMapPin },
   { value: 'checkbox', label: 'Casilla de verificación', icon: FiCheckSquare },
-  { value: 'time', label: 'Hora', icon: FiClock }
+  { value: 'time', label: 'Hora', icon: FiClock },
+  { value: 'multiple_dependent_lists', label: 'Lista dependientes múltiples', icon: FiGitBranch },
+  { value: 'cascade', label: 'Listas en cascada multinivel', icon: FiGitBranch },
+  { value: 'cascade_with_autocomplete', label: 'Listas con autocompletado', icon: FiGitBranch }
 ]
 
 export default function FormFieldBuilder({ field, onUpdate, onRemove }: FormFieldBuilderProps) {
@@ -178,6 +183,110 @@ export default function FormFieldBuilder({ field, onUpdate, onRemove }: FormFiel
               <option value="AM">AM</option>
               <option value="PM">PM</option>
             </select>
+          </div>
+        )
+      
+      case 'cascade':
+        const levels = field.cascadeConfig?.levels || []
+        return (
+          <div className={`space-y-3 ${field.cascadeConfig?.layout === 'horizontal' ? 'flex gap-3' : ''}`}>
+            {levels.slice(0, 3).map((level: any) => (
+              <div key={level.level} className={field.cascadeConfig?.layout === 'horizontal' ? 'flex-1' : ''}>
+                <label className="block text-xs text-neutral-500 mb-1">{level.label}</label>
+                <select
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-md bg-neutral-50 text-sm"
+                  disabled
+                >
+                  <option value="">Seleccionar...</option>
+                  <option value="">Opción 1</option>
+                  <option value="">Opción 2</option>
+                </select>
+              </div>
+            ))}
+            {levels.length > 3 && (
+              <div className={`text-xs text-neutral-500 ${field.cascadeConfig?.layout === 'horizontal' ? 'flex items-end' : ''}`}>
+                ... y {levels.length - 3} niveles más
+              </div>
+            )}
+          </div>
+        )
+      
+      case 'cascade_with_autocomplete':
+        const autocompleteLevels = field.autocompleteConfig?.levels || []
+        return (
+          <div className={`space-y-3 ${field.autocompleteConfig?.layout === 'horizontal' ? 'flex gap-3' : ''}`}>
+            {autocompleteLevels.slice(0, 2).map((level: any) => (
+              <div key={level.level} className={field.autocompleteConfig?.layout === 'horizontal' ? 'flex-1' : ''}>
+                <label className="block text-xs text-neutral-500 mb-1">
+                  {level.label}
+                  {level.level === autocompleteLevels.length && (
+                    <span className="ml-1 text-primary-600 text-xs">+ Autocompletar</span>
+                  )}
+                </label>
+                <select
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-md bg-neutral-50 text-sm"
+                  disabled
+                >
+                  <option value="">Seleccionar...</option>
+                  <option value="">Opción 1</option>
+                  <option value="">Opción 2</option>
+                </select>
+                {level.level === autocompleteLevels.length && (
+                  <input
+                    type="text"
+                    className="w-full mt-1 px-3 py-2 border border-primary-300 rounded-md bg-primary-50 text-sm"
+                    placeholder="Se autocompletará..."
+                    disabled
+                  />
+                )}
+              </div>
+            ))}
+            {autocompleteLevels.length > 2 && (
+              <div className={`text-xs text-neutral-500 ${field.autocompleteConfig?.layout === 'horizontal' ? 'flex items-end' : ''}`}>
+                ... y {autocompleteLevels.length - 2} niveles más
+              </div>
+            )}
+          </div>
+        )
+      
+      case 'multiple_dependent_lists':
+        const dependentLevels = field.multipleDependentConfig?.levels || []
+        return (
+          <div className="space-y-3">
+            {dependentLevels.length === 0 ? (
+              <div className="text-center py-4 text-neutral-500 text-sm">
+                Configure los niveles jerárquicos para ver la vista previa
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {dependentLevels.slice(0, 4).map((level: any, index: number) => (
+                  <div key={level.id}>
+                    <label className="block text-xs text-neutral-500 mb-1">
+                      {level.name}
+                      <span className="text-red-500 ml-1">*</span>
+                    </label>
+                    <select
+                      className="w-full px-3 py-2 border border-neutral-300 rounded-md bg-neutral-50 text-sm"
+                      disabled
+                    >
+                      <option value="">Seleccionar {level.name}...</option>
+                      <option value="">Opción ejemplo 1</option>
+                      <option value="">Opción ejemplo 2</option>
+                    </select>
+                    {index > 0 && (
+                      <p className="text-xs text-amber-600 mt-1">
+                        Seleccione el nivel anterior primero
+                      </p>
+                    )}
+                  </div>
+                ))}
+                {dependentLevels.length > 4 && (
+                  <div className="text-xs text-neutral-500 text-center py-2">
+                    ... y {dependentLevels.length - 4} niveles más
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )
       
@@ -353,6 +462,18 @@ export default function FormFieldBuilder({ field, onUpdate, onRemove }: FormFiel
           </div>
         )
       
+      case 'multiple_dependent_lists':
+        return <ProperMultipleDependentListsConfig field={field} onUpdate={onUpdate} />
+      
+      case 'cascade':
+      case 'cascade_with_autocomplete':
+        return (
+          <RobustCascadeConfig
+            field={field}
+            onUpdate={onUpdate}
+          />
+        )
+      
       default:
         return null
     }
@@ -372,13 +493,27 @@ export default function FormFieldBuilder({ field, onUpdate, onRemove }: FormFiel
             <SelectedIcon className="w-5 h-5 text-primary-600" />
           </div>
           <div className="flex-1">
-            <input
-              type="text"
-              value={field.label}
-              onChange={(e) => onUpdate(field.id, { label: e.target.value })}
-              className="w-full px-3 py-2 border border-neutral-300 rounded-md font-medium text-neutral-900 placeholder-neutral-400"
-              placeholder="Título del campo"
-            />
+            <div className="relative">
+              <input
+                type="text"
+                value={field.label}
+                onChange={(e) => onUpdate(field.id, { label: e.target.value })}
+                className={`w-full px-3 py-2 border rounded-md font-medium placeholder-neutral-400 ${
+                  field.type === 'multiple_dependent_lists' 
+                    ? 'bg-neutral-100 border-neutral-300 text-neutral-500 cursor-not-allowed' 
+                    : 'border-neutral-300 text-neutral-900'
+                }`}
+                placeholder="Título del campo"
+                disabled={field.type === 'multiple_dependent_lists'}
+              />
+              {field.type === 'multiple_dependent_lists' && (
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <div className="bg-amber-50 text-amber-700 text-xs px-2 py-1 rounded border border-amber-200">
+                    Automático por niveles jerárquicos
+                  </div>
+                </div>
+              )}
+            </div>
             <input
               type="text"
               value={field.name}

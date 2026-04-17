@@ -199,15 +199,33 @@ export default function CentrosCosto() {
         return
       }
 
+      let savedCostCenter
       if (editingCostCenter) {
-        await costCentersService.update(editingCostCenter.id, formData)
+        savedCostCenter = await costCentersService.update(editingCostCenter.id, formData)
         setSuccessMessage('Centro de costo actualizado correctamente')
       } else {
-        await costCentersService.create(formData)
+        savedCostCenter = await costCentersService.create(formData)
         setSuccessMessage('Centro de costo creado correctamente')
       }
       
+      // Actualización optimista del estado local inmediato
+      if (editingCostCenter) {
+        // Actualizar el centro existente en el estado local
+        setCostCenters(prev => prev.map(cc => 
+          cc.id === editingCostCenter.id 
+            ? { ...cc, ...formData, id: editingCostCenter.id }
+            : cc
+        ))
+      } else {
+        // Agregar el nuevo centro al estado local
+        setCostCenters(prev => [...prev, { ...formData, id: savedCostCenter.id }])
+      }
+      
+      // Recargar datos para asegurar consistencia completa
       await loadCostCenters()
+      await loadUsers()
+      await loadParentCostCenters()
+      
       setShowCreateModal(false)
       resetForm()
       
@@ -245,12 +263,25 @@ export default function CentrosCosto() {
     if (confirm('¿Está seguro de eliminar este centro de costo?')) {
       try {
         setError(null)
+        
+        // Actualización optimista: eliminar inmediatamente del estado local
+        setCostCenters(prev => prev.filter(cc => cc.id !== id))
+        
         await costCentersService.delete(id)
+        
+        // Recargar para asegurar consistencia
         await loadCostCenters()
+        await loadUsers()
+        await loadParentCostCenters()
+        
         setSuccessMessage('Centro de costo eliminado correctamente')
         setTimeout(() => setSuccessMessage(null), 3000)
       } catch (error: any) {
         console.error('Error deleting cost center:', error)
+        
+        // Revertir la actualización optimista si hay error
+        await loadCostCenters()
+        
         const errorMessage = error.response?.data?.error || 'Error al eliminar el centro de costo'
         setError(errorMessage)
       }

@@ -15,6 +15,14 @@ import ObjetivosAccionesEstrategicas from '@pages/admin/ObjetivosAccionesEstrate
 import Variables from '@pages/admin/Variables'
 import Seguimiento from '@pages/admin/Seguimiento'
 
+// Admin Reportes Pages
+import AdminReportesVariables from '@pages/admin/ReportesVariables'
+import AdminReportesUsuarios from '@pages/admin/ReportesUsuarios'
+import ExceptionControl from '@pages/admin/ExceptionControl'
+import FormulaConfiguration from '@pages/admin/FormulaConfiguration'
+import AdminReportesCentrosCosto from '@pages/admin/ReportesCentrosCosto'
+import AdminReportesPlanes from '@pages/admin/ReportesPlanes'
+
 // Operator Pages
 import OperatorDashboard from '@pages/operator/OperatorDashboard'
 import OperatorSeguimiento from '@pages/operator/OperatorSeguimiento'
@@ -40,6 +48,12 @@ function App() {
             <Route path="objetivos" element={<ObjetivosAccionesEstrategicas />} />
             <Route path="variables" element={<Variables />} />
             <Route path="seguimiento" element={<Seguimiento />} />
+            <Route path="reportes/variables" element={<AdminReportesVariables />} />
+            <Route path="reportes/usuarios" element={<AdminReportesUsuarios />} />
+            <Route path="reportes/centros-costo" element={<AdminReportesCentrosCosto />} />
+            <Route path="reportes/planes" element={<AdminReportesPlanes />} />
+            <Route path="excepciones" element={<ExceptionControl />} />
+            <Route path="formulas" element={<FormulaConfiguration />} />
             <Route path="configuracion/plazos" element={<ConfiguracionPlazos />} />
           </Route>
           
@@ -50,6 +64,7 @@ function App() {
             </ProtectedRoute>
           }>
             <Route index element={<OperatorDashboard />} />
+            <Route path="seguimiento" element={<Navigate to="indicadores" replace />} />
             <Route path="seguimiento/indicadores" element={<OperatorSeguimiento />} />
             <Route path="reportes" element={<OperatorReportes />} />
           </Route>

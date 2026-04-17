@@ -30,7 +30,7 @@ export interface IndicatorVariable {
 
 export interface FormField {
   id: string
-  type: 'date' | 'select' | 'integer' | 'decimal' | 'currency' | 'text' | 'textarea' | 'coordinates' | 'checkbox' | 'time'
+  type: 'text' | 'number' | 'date' | 'select' | 'textarea' | 'checkbox' | 'file' | 'time' | 'email' | 'url' | 'phone' | 'currency' | 'location' | 'rating' | 'password' | 'range' | 'color' | 'hidden' | 'cascade' | 'cascade_with_autocomplete' | 'multiple_dependent_lists' | 'integer' | 'decimal' | 'coordinates'
   label: string
   name: string
   required: boolean
@@ -40,8 +40,80 @@ export interface FormField {
     min?: number
     max?: number
     pattern?: string
-    message?: string
+    minLength?: number
+    maxLength?: number
   }
+  cascadeConfig?: any
+  autocompleteConfig?: any
+  multipleDependentConfig?: any
+  dependentListData?: any
+}
+
+export interface CascadeConfig {
+  groupLabel: string
+  levels: CascadeLevel[]
+  layout: 'vertical' | 'horizontal'
+  data: CascadeData // Datos anidados simplificados
+}
+
+export interface CascadeLevel {
+  level: number
+  fieldName: string
+  label: string
+  required: boolean
+  validationMessage?: string
+  dataSource?: 'database' | 'static'
+  staticOptions?: { value: string; label: string }[]
+  databaseTable?: string
+  valueField?: string
+  labelField?: string
+  parentField?: string
+}
+
+export interface CascadeData {
+  [key: string]: {
+    label: string
+    children?: CascadeData
+  }
+}
+
+export interface CascadeOption {
+  key: string
+  label: string
+  value?: string
+  children?: CascadeOption[]
+}
+
+export interface AutocompleteLevel extends CascadeLevel {
+  hasAutocomplete?: boolean
+  autocompleteLabel?: string
+  autocompleteField?: string
+  autocompletePlaceholder?: string
+}
+
+export interface AutocompleteConfig {
+  groupLabel: string
+  levels: CascadeLevel[]
+  layout: 'vertical' | 'horizontal'
+  data: CascadeData // Datos anidados de la cascada
+  autocompleteMap: AutocompleteMap // Mapeo simple de autocompletado
+}
+
+export interface AutocompleteMap {
+  [key: string]: string // Mapeo: valor_seleccionado -> texto_autocompletado
+}
+
+export interface AutocompleteValue {
+  id: string
+  variableId: string
+  fieldId: string
+  level: number
+  parentValue?: string
+  triggerValue: string
+  autocompleteValue: string
+  label?: string
+  createdAt: string
+  updatedAt: string
 }
 
 export interface CreateIndicatorVariableRequest {

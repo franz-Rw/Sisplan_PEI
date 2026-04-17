@@ -11,7 +11,7 @@ export const costCentersController = {
       console.log('Cost centers query params:', { search, status })
       
       // Si hay un status inválido, continuar sin filtrar por status
-      let whereClause: any = {}
+      const whereClause: any = {}
       
       if (status && Object.values(CostCenterStatus).includes(status as CostCenterStatus)) {
         whereClause.status = status as CostCenterStatus
@@ -45,6 +45,37 @@ export const costCentersController = {
     } catch (error) {
       console.error('Error al obtener centros de costo:', error)
       return res.status(500).json({ error: 'Error al obtener centros de costo' })
+    }
+  },
+
+  // Obtener un centro de costo por ID
+  getById: async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params
+
+      const costCenter = await prisma.costCenter.findUnique({
+        where: { id },
+        include: {
+          assignedUser: {
+            select: { id: true, name: true, email: true }
+          },
+          parent: {
+            select: { id: true, code: true, description: true }
+          },
+          _count: {
+            select: { users: true }
+          }
+        }
+      })
+
+      if (!costCenter) {
+        return res.status(404).json({ error: 'Centro de costo no encontrado' })
+      }
+
+      return res.json(costCenter)
+    } catch (error) {
+      console.error('Error al obtener centro de costo:', error)
+      return res.status(500).json({ error: 'Error al obtener centro de costo' })
     }
   },
 

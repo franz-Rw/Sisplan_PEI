@@ -59,20 +59,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, [])
 
   const login = async (email: string, password: string) => {
-    try {
-      const response = await authService.login({ email, password })
-      setUser(response.user)
-      setToken(response.token)
-      authService.setToken(response.token)
-      
-      // Redirect based on role
-      if (response.user.role === 'ADMIN') {
-        navigate('/admin')
-      } else if (response.user.role === 'OPERATOR') {
-        navigate('/operator')
-      }
-    } catch (error) {
-      throw error
+    const response = await authService.login({ email, password })
+    setUser(response.user)
+    setToken(response.token)
+    authService.setToken(response.token)
+    
+    // Redirect based on role
+    if (response.user.role === 'ADMIN') {
+      navigate('/admin')
+    } else if (response.user.role === 'OPERATOR') {
+      navigate('/operator')
     }
   }
 

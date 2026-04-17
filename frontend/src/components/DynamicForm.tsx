@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { FormField } from '@services/indicatorVariablesService'
+import SimpleCascadeRenderer from './SimpleCascadeRenderer'
 
 interface DynamicFormProps {
   fields: FormField[]
@@ -248,6 +249,17 @@ export default function DynamicForm({ fields, onSubmit, initialData = {} }: Dyna
               <option value="PM">PM</option>
             </select>
           </div>
+        )
+      
+      case 'cascade':
+      case 'cascade_with_autocomplete':
+        return (
+          <SimpleCascadeRenderer
+            field={field}
+            value={value}
+            onChange={(values) => handleFieldChange(field.name, values)}
+            disabled={false}
+          />
         )
       
       default:

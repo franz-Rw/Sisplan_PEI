@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { FiTrendingUp, FiActivity, FiCheckCircle, FiClock, FiBarChart2, FiFileText, FiCalendar, FiTarget, FiZap, FiAlertCircle } from 'react-icons/fi'
 import { useAuth } from '@context/AuthContext'
+import { useNavigate } from 'react-router-dom'
+import apiClient from '@services/api'
 
 interface DashboardStats {
   totalObjectives: number
@@ -31,6 +33,7 @@ interface RecentActivity {
 
 export default function OperatorDashboard() {
   const { user } = useAuth()
+  const navigate = useNavigate()
   const [stats, setStats] = useState<DashboardStats>({
     totalObjectives: 0,
     totalObjectiveIndicators: 0,
@@ -50,6 +53,7 @@ export default function OperatorDashboard() {
   })
   const [recentActivities, setRecentActivities] = useState<RecentActivity[]>([])
   const [loading, setLoading] = useState(true)
+  const [approvedCount, setApprovedCount] = useState(0)
 
   useEffect(() => {
     loadDashboardData()
@@ -59,59 +63,94 @@ export default function OperatorDashboard() {
     try {
       setLoading(true)
       
-      // Simulate API calls - replace with actual API calls
-      setTimeout(() => {
-        setStats({
-          totalObjectives: 8,
-          totalObjectiveIndicators: 24,
-          totalActions: 15,
-          totalActionIndicators: 32,
-          assignedVariables: 56,
-          submittedVariables: 42,
-          pendingApproval: 8,
-          recentActivity: 12
-        })
-        
-        setTrackingStatus({
-          isOpen: true,
-          startDate: '2024-01-01',
-          endDate: '2024-01-31',
-          deadlineTime: '23:59',
-          daysRemaining: 15
-        })
-        
-        setRecentActivities([
-          {
-            id: '1',
-            type: 'data_registered',
-            description: 'Datos registrados para indicador "Tasa de Cobertura"',
-            timestamp: '2024-01-15 10:30',
-            status: 'success'
-          },
-          {
-            id: '2',
-            type: 'data_approved',
-            description: 'Datos aprobados para indicador "Eficiencia Operativa"',
-            timestamp: '2024-01-15 09:45',
-            status: 'success'
-          },
-          {
-            id: '3',
-            type: 'data_registered',
-            description: 'Datos registrados para indicador "Índice de Satisfacción"',
-            timestamp: '2024-01-15 08:20',
-            status: 'success'
-          },
-          {
-            id: '4',
-            type: 'data_rejected',
-            description: 'Datos rechazados para indicador "Productividad"',
-            timestamp: '2024-01-14 16:30',
-            status: 'error'
-          }
-        ])
+      // Validar que el usuario tenga costCenter
+      if (!user?.costCenter?.code) {
+        console.warn('Usuario sin centro de costo asignado')
         setLoading(false)
-      }, 1000)
+        return
+      }
+
+      // Cargar datos del usuario (filtrados por costCenter en backend)
+      const [indicatorDataRes] = await Promise.all([
+        apiClient.get('/indicator-data/all').catch(() => ({ data: [] })),
+      ])
+
+      const indicatorData = indicatorDataRes.data || []
+    
+      // Extraer objetivos y acciones ÚNICAMENTE de los datos del usuario
+      const uniqueObjectives = new Set<string>()
+      const uniqueActions = new Set<string>()
+      const uniqueVariables = new Set<string>()
+
+      indicatorData.forEach((d: any) => {
+        if (d.variable?.indicator?.objective?.id) {
+          uniqueObjectives.add(d.variable.indicator.objective.id)
+        }
+        if (d.variable?.indicator?.action?.id) {
+          uniqueActions.add(d.variable.indicator.action.id)
+        }
+        if (d.variable?.id) {
+          uniqueVariables.add(d.variable.id)
+        }
+      })
+
+      // Calcular estadísticas REALES basadas en los datos del usuario
+      const assignedVariables = uniqueVariables.size > 0 ? uniqueVariables.size : indicatorData.length
+      const submittedVariables = indicatorData.filter((d: any) => 
+        d.status && d.status !== 'DRAFT' && d.status !== 'draft').length
+      const pendingApproval = indicatorData.filter((d: any) => 
+        d.status === 'PENDING' || d.status === 'pending').length
+      const approvedVariables = indicatorData.filter((d: any) => 
+        d.status === 'APPROVED' || d.status === 'approved').length
+
+      setApprovedCount(approvedVariables)
+
+      setStats({
+        totalObjectives: uniqueObjectives.size,
+        totalObjectiveIndicators: uniqueObjectives.size,
+        totalActions: uniqueActions.size,
+        totalActionIndicators: uniqueActions.size,
+        assignedVariables: assignedVariables,
+        submittedVariables: submittedVariables,
+        pendingApproval: pendingApproval,
+        recentActivity: indicatorData.length
+      })
+
+      // Información sobre el período de seguimiento
+      const now = new Date()
+      const currentYear = now.getFullYear()
+      const startDate = new Date(currentYear, 0, 1) // 1 enero
+      const endDate = new Date(currentYear, 11, 31) // 31 diciembre
+      const daysRemaining = Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+
+      setTrackingStatus({
+        isOpen: true,
+        startDate: startDate.toISOString().split('T')[0],
+        endDate: endDate.toISOString().split('T')[0],
+        deadlineTime: '23:59',
+        daysRemaining: Math.max(0, daysRemaining)
+      })
+
+      // Actividad reciente de los últimos registros asignados al usuario
+      const recentData = filteredIndicatorData.slice(0, 4).map((d: any) => {
+        const type: 'data_registered' | 'data_approved' | 'data_rejected' = 
+          d.status === 'APPROVED' || d.status === 'approved' ? 'data_approved' :
+          d.status === 'REJECTED' || d.status === 'rejected' ? 'data_rejected' : 'data_registered'
+        
+        return {
+          id: d.id,
+          type,
+          description: `Datos ${
+            type === 'data_approved' ? 'aprobados' : 
+            type === 'data_rejected' ? 'rechazados' : 'registrados'
+          } para variable "${d.variable?.name || 'Sin nombre'}"`,
+          timestamp: d.updatedAt ? new Date(d.updatedAt).toLocaleString('es-ES') : 'Hace poco',
+          status: type === 'data_approved' ? 'success' : type === 'data_rejected' ? 'error' : 'success'
+        }
+      })
+
+      setRecentActivities(recentData)
+      setLoading(false)
     } catch (error) {
       console.error('Error loading dashboard data:', error)
       setLoading(false)
@@ -173,6 +212,9 @@ export default function OperatorDashboard() {
           <div>
             <h1 className="text-2xl font-bold mb-2">Bienvenido, {user?.name}</h1>
             <p className="text-primary-100">
+              Centro de Costo: <span className="font-semibold">{user?.costCenter?.description || user?.costCenter?.code || 'No asignado'}</span>
+            </p>
+            <p className="text-primary-100 text-sm mt-1">
               Panel de control para operadores - Gestiona y registra datos de indicadores
             </p>
           </div>
@@ -347,41 +389,56 @@ export default function OperatorDashboard() {
       </div>
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-white rounded-xl border border-neutral-200 p-6 shadow-sm">
           <h2 className="text-lg font-semibold text-neutral-900 mb-4">Acciones Rápidas</h2>
           <div className="space-y-3">
-            <button className="w-full flex items-center gap-3 px-4 py-3 text-left border border-neutral-200 rounded-lg hover:bg-neutral-50 transition-colors">
+            <button 
+              onClick={() => navigate('/operator/seguimiento/indicadores')}
+              className="w-full flex items-center gap-3 px-4 py-3 text-left border border-neutral-200 rounded-lg hover:bg-neutral-50 transition-colors"
+            >
               <FiActivity className="w-5 h-5 text-primary-600" />
               <span className="font-medium">Registrar Datos</span>
             </button>
-            <button className="w-full flex items-center gap-3 px-4 py-3 text-left border border-neutral-200 rounded-lg hover:bg-neutral-50 transition-colors">
+            <button 
+              onClick={() => navigate('/operator/reportes/variables')}
+              className="w-full flex items-center gap-3 px-4 py-3 text-left border border-neutral-200 rounded-lg hover:bg-neutral-50 transition-colors"
+            >
               <FiFileText className="w-5 h-5 text-primary-600" />
               <span className="font-medium">Ver Reportes</span>
             </button>
-            <button className="w-full flex items-center gap-3 px-4 py-3 text-left border border-neutral-200 rounded-lg hover:bg-neutral-50 transition-colors">
+            <button 
+              onClick={() => navigate('/operator/seguimiento/indicadores')}
+              className="w-full flex items-center gap-3 px-4 py-3 text-left border border-neutral-200 rounded-lg hover:bg-neutral-50 transition-colors"
+            >
               <FiBarChart2 className="w-5 h-5 text-primary-600" />
               <span className="font-medium">Mis Indicadores</span>
             </button>
           </div>
         </div>
 
-        <div className="bg-white rounded-xl border border-neutral-200 p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-neutral-900 mb-4">Información del Sistema</h2>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-neutral-600">Versión del Sistema</span>
-              <span className="text-sm font-medium text-neutral-900">v2.1.0</span>
+        <div className="md:col-span-2 bg-white rounded-xl border border-neutral-200 p-6 shadow-sm">
+          <h2 className="text-lg font-semibold text-neutral-900 mb-4">Mis Métricas Clave</h2>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <p className="text-sm text-blue-600 font-medium mb-1">Tasa de Cumplimiento</p>
+              <p className="text-2xl font-bold text-blue-700">{stats.assignedVariables > 0 ? Math.round((stats.submittedVariables / stats.assignedVariables) * 100) : 0}%</p>
+              <p className="text-xs text-blue-500 mt-1">{stats.submittedVariables} de {stats.assignedVariables}</p>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-neutral-600">Última Actualización</span>
-              <span className="text-sm font-medium text-neutral-900">15 Ene 2024</span>
+            <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+              <p className="text-sm text-green-600 font-medium mb-1">Aprobadas</p>
+              <p className="text-2xl font-bold text-green-700">{approvedCount}</p>
+              <p className="text-xs text-green-500 mt-1">De {stats.submittedVariables} registros</p>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-neutral-600">Estado del Servidor</span>
-              <span className="inline-flex px-2 py-1 text-xs font-medium bg-green-100 text-green-700 rounded-full">
-                Activo
-              </span>
+            <div className="p-4 bg-orange-50 rounded-lg border border-orange-200">
+              <p className="text-sm text-orange-600 font-medium mb-1">Pendientes Revisión</p>
+              <p className="text-2xl font-bold text-orange-700">{stats.pendingApproval}</p>
+              <p className="text-xs text-orange-500 mt-1">Esperando aprobación</p>
+            </div>
+            <div className="p-4 bg-purple-50 rounded-lg border border-purple-200">
+              <p className="text-sm text-purple-600 font-medium mb-1">Total Variables</p>
+              <p className="text-2xl font-bold text-purple-700">{stats.assignedVariables}</p>
+              <p className="text-xs text-purple-500 mt-1">De su centro de costo</p>
             </div>
           </div>
         </div>
