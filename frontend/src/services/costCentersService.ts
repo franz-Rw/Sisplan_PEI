@@ -50,9 +50,28 @@ export const costCentersService = {
       if (search) params.search = search
       if (status) params.status = status
       
-      console.log('Fetching cost centers with params:', params)
+      console.log('SERVICE GET ALL - Enviando request:', {
+        url: '/cost-centers',
+        method: 'GET',
+        params: params
+      })
+      
       const response = await apiClient.get('/cost-centers', { params })
-      console.log('Cost centers response:', response.data)
+      
+      console.log('SERVICE GET ALL - Respuesta recibida:', response.data)
+      
+      // Logging detallado para diagnóstico
+      response.data.forEach((cc: any, index: number) => {
+        console.log(`SERVICE GET ALL - Centro ${index + 1}:`, {
+          id: cc.id,
+          code: cc.code,
+          assignedUserId: cc.assignedUserId,
+          assignedUser: cc.assignedUser,
+          hasAssignedUser: !!cc.assignedUser,
+          assignedUserName: cc.assignedUser?.name || 'SIN USUARIO'
+        })
+      })
+      
       return response.data
     } catch (error) {
       console.error('Error in getAll cost centers:', error)
@@ -95,13 +114,29 @@ export const costCentersService = {
 
   // Crear nuevo centro de costo
   create: async (costCenterData: CreateCostCenterRequest): Promise<CostCenter> => {
+    console.log('SERVICE - CREATE - Enviando request:', {
+      url: '/cost-centers',
+      method: 'POST',
+      data: costCenterData
+    })
+    
     const response = await apiClient.post('/cost-centers', costCenterData)
+    
+    console.log('SERVICE - CREATE - Respuesta recibida:', response.data)
     return response.data
   },
 
   // Actualizar centro de costo
   update: async (id: string, costCenterData: UpdateCostCenterRequest): Promise<CostCenter> => {
+    console.log('SERVICE - UPDATE - Enviando request:', {
+      url: `/cost-centers/${id}`,
+      method: 'PUT',
+      data: costCenterData
+    })
+    
     const response = await apiClient.put(`/cost-centers/${id}`, costCenterData)
+    
+    console.log('SERVICE - UPDATE - Respuesta recibida:', response.data)
     return response.data
   },
 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { FiDownload, FiCalendar, FiAlertCircle, FiTrendingUp, FiFileText } from 'react-icons/fi'
 import RejectedRecords from './RejectedRecords'
+import { useAuth } from '@context/AuthContext'
 
 interface TabButtonProps {
   active: boolean
@@ -22,13 +23,23 @@ const TabButton: React.FC<TabButtonProps> = ({ active, onClick, children }) => (
 )
 
 export default function Reportes() {
+  const { user } = useAuth()
   const [activeTab, setActiveTab] = useState<'rejected' | 'statistics'>('rejected')
 
   return (
     <div className="p-6">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900 mb-2">Reportes</h1>
-        <p className="text-gray-600">
+        <div className="flex items-center gap-4 mt-2">
+          <span className="text-gray-600">
+            {user?.name} - Rol: {user?.role === 'OPERATOR' ? 'Operador' : user?.role}
+          </span>
+          <span className="text-gray-400">|</span>
+          <span className="text-gray-600 font-medium">
+            Centro de Costo: {user?.costCenter?.description || user?.costCenter?.code || 'No asignado'}
+          </span>
+        </div>
+        <p className="text-gray-600 mt-1">
           Sistema de reportes y análisis de datos para la gestión de variables estratégicas.
         </p>
       </div>

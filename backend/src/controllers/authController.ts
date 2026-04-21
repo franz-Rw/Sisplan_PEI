@@ -70,8 +70,11 @@ export const authController = {
     try {
       const { email, password } = req.body
 
+      console.log('LOGIN - Intento de login:', { email, passwordLength: password?.length })
+
       // Validaciones
       if (!email || !password) {
+        console.log('LOGIN - Error: Email o contraseña faltantes')
         return res.status(400).json({
           error: 'Email y contraseña son obligatorios',
         })
@@ -86,6 +89,7 @@ export const authController = {
           name: true,
           role: true,
           password: true,
+          status: true,
           costCenter: {
             select: {
               id: true,
@@ -103,9 +107,26 @@ export const authController = {
         },
       })
 
+      console.log('LOGIN - Usuario encontrado:', {
+        found: !!user,
+        email: user?.email,
+        role: user?.role,
+        status: user?.status,
+        hasPassword: !!user?.password
+      })
+
       if (!user) {
+        console.log('LOGIN - Error: Usuario no encontrado')
         return res.status(401).json({
           error: 'Credenciales inválidas',
+        })
+      }
+
+      // Verificar estado del usuario
+      if (user.status !== 'ACTIVO') {
+        console.log('LOGIN - Error: Usuario no está activo', { status: user.status })
+        return res.status(401).json({
+          error: 'Usuario inactivo. Contacte al administrador.',
         })
       }
 
@@ -113,6 +134,7 @@ export const authController = {
       const isPasswordValid = await comparePassword(password, user.password)
 
       if (!isPasswordValid) {
+        console.log('LOGIN - Error: Contraseña inválida')
         return res.status(401).json({
           error: 'Credenciales inválidas',
         })

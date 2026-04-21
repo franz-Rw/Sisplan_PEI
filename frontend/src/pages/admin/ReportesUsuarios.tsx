@@ -5,8 +5,7 @@ import apiClient from '@services/api'
 interface User {
   id: string
   email: string
-  firstName: string
-  lastName: string
+  name: string
   role: string
   status: string
   costCenter?: {
@@ -45,7 +44,7 @@ export default function ReportesUsuarios() {
       const csvContent = [
         headers.join(','),
         ...users.map(user => [
-          `${user.firstName} ${user.lastName}`,
+          user.name,
           user.email,
           user.role,
           user.costCenter ? `${user.costCenter.code} - ${user.costCenter.description}` : 'Sin asignar',
@@ -163,7 +162,7 @@ export default function ReportesUsuarios() {
                 {users.map(user => (
                   <tr key={user.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {user.firstName} {user.lastName}
+                      {user.name}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {user.email}

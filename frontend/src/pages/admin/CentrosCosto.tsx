@@ -51,7 +51,20 @@ export default function CentrosCosto() {
     try {
       setLoading(true)
       const data = await costCentersService.getAll()
-      console.log('Cost centers loaded:', data)
+      console.log('LOAD CENTERS - Datos recibidos del backend:', data)
+      
+      // Logging detallado para diagnóstico
+      data.forEach((cc, index) => {
+        console.log(`LOAD CENTERS - Centro ${index + 1}:`, {
+          id: cc.id,
+          code: cc.code,
+          assignedUserId: cc.assignedUserId,
+          assignedUser: cc.assignedUser,
+          hasAssignedUser: !!cc.assignedUser,
+          assignedUserName: cc.assignedUser?.name || 'SIN USUARIO'
+        })
+      })
+      
       setCostCenters(data)
     } catch (error) {
       console.error('Error loading cost centers:', error)
@@ -199,26 +212,106 @@ export default function CentrosCosto() {
         return
       }
 
+      // Logging del payload que se enviará
+      console.log('FRONTEND - Payload a enviar:', {
+        action: editingCostCenter ? 'UPDATE' : 'CREATE',
+        costCenterId: editingCostCenter?.id,
+        formData: {
+          code: formData.code,
+          description: formData.description,
+          parentId: formData.parentId,
+          assignedUserId: formData.assignedUserId,
+          status: formData.status
+        }
+      })
+
       let savedCostCenter
       if (editingCostCenter) {
         savedCostCenter = await costCentersService.update(editingCostCenter.id, formData)
+        console.log('FRONTEND - Respuesta recibida (UPDATE):', savedCostCenter)
         setSuccessMessage('Centro de costo actualizado correctamente')
       } else {
         savedCostCenter = await costCentersService.create(formData)
+        console.log('FRONTEND - Respuesta recibida (CREATE):', savedCostCenter)
         setSuccessMessage('Centro de costo creado correctamente')
       }
       
       // Actualización optimista del estado local inmediato
       if (editingCostCenter) {
         // Actualizar el centro existente en el estado local
-        setCostCenters(prev => prev.map(cc => 
-          cc.id === editingCostCenter.id 
-            ? { ...cc, ...formData, id: editingCostCenter.id }
-            : cc
-        ))
+        setCostCenters(prev => {
+          const updatedCenters = prev.map(cc => {
+            if (cc.id === editingCostCenter.id) {
+              // Buscar el usuario asignado si se proporcionó assignedUserId
+              const assignedUser = formData.assignedUserId 
+                ? users.find(u => u.id === formData.assignedUserId)
+                : null
+              
+              console.log(`UPDATE - Asignando usuario ${assignedUser?.name} al centro ${editingCostCenter.code}`)
+              
+              return {
+                ...cc,
+                ...formData,
+                id: editingCostCenter.id,
+                assignedUser: assignedUser || undefined
+              }
+            }
+            return cc
+          })
+          
+          // Verificar si algún otro centro perdió la asignación (debido a constraint UNIQUE)
+          if (formData.assignedUserId) {
+            const previouslyAssigned = prev.find(cc => 
+              cc.assignedUser?.id === formData.assignedUserId && cc.id !== editingCostCenter.id
+            )
+            
+            if (previouslyAssigned) {
+              console.log(`UPDATE - Usuario desasignado automáticamente del centro ${previouslyAssigned.code}`)
+              
+              return updatedCenters.map(cc => 
+                cc.id === previouslyAssigned.id 
+                  ? { ...cc, assignedUser: undefined }
+                  : cc
+              )
+            }
+          }
+          
+          return updatedCenters
+        })
       } else {
         // Agregar el nuevo centro al estado local
-        setCostCenters(prev => [...prev, { ...formData, id: savedCostCenter.id }])
+        const assignedUser = formData.assignedUserId 
+          ? users.find(u => u.id === formData.assignedUserId)
+          : null
+        
+        console.log(`CREATE - Asignando usuario ${assignedUser?.name} al nuevo centro ${formData.code}`)
+        
+        setCostCenters(prev => {
+          // Verificar si algún otro centro perdió la asignación
+          if (formData.assignedUserId) {
+            const previouslyAssigned = prev.find(cc => cc.assignedUser?.id === formData.assignedUserId)
+            
+            if (previouslyAssigned) {
+              console.log(`CREATE - Usuario desasignado automáticamente del centro ${previouslyAssigned.code}`)
+              
+              return prev.map(cc => 
+                cc.assignedUser?.id === formData.assignedUserId 
+                  ? { ...cc, assignedUser: undefined }
+                  : cc
+              ).concat([{ 
+                ...formData, 
+                id: savedCostCenter.id,
+                assignedUser: assignedUser || undefined
+              }])
+            }
+          }
+          
+          return [...prev, { 
+            ...formData, 
+            id: savedCostCenter.id,
+            assignedUser: assignedUser || undefined
+          }]
+        })
       }
       
       // Recargar datos para asegurar consistencia completa

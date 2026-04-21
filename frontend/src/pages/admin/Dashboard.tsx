@@ -87,6 +87,10 @@ export default function Dashboard() {
   // Stats
   const [stats, setStats] = useState<StatCard[]>([])
 
+  // Plan management
+  const [plans, setPlans] = useState<any[]>([])
+  const [selectedPlan, setSelectedPlan] = useState<string>('')
+
   // Data for charts
   const [indicatorsByYear, setIndicatorsByYear] = useState<any[]>([])
   const [dataStatusMetrics, setDataStatusMetrics] = useState<DataStatusMetrics>({
@@ -102,25 +106,67 @@ export default function Dashboard() {
   const [pendingApprovals, setPendingApprovals] = useState<any[]>([])
 
   useEffect(() => {
-    loadDashboardData()
+    loadPlans()
   }, [])
 
+  useEffect(() => {
+    console.log('DASHBOARD ADMIN - useEffect triggered:', {
+      selectedPlan,
+      loading,
+      chartsLoaded
+    })
+    if (selectedPlan) {
+      loadDashboardData()
+    } else {
+      console.log('DASHBOARD ADMIN - No selectedPlan, showing empty state')
+      setLoading(false)
+    }
+  }, [selectedPlan])
+
+  const loadPlans = async () => {
+    try {
+      const plansRes = await apiClient.get('/plans').catch(() => ({ data: [] }))
+      setPlans(plansRes.data || [])
+    } catch (err) {
+      console.error('Error cargando planes:', err)
+      setError('Error al cargar los planes')
+    }
+  }
+
   const loadDashboardData = async () => {
+    console.log('DASHBOARD ADMIN - loadDashboardData started:', {
+      selectedPlan,
+      loading,
+      chartsLoaded
+    })
     try {
       setLoading(true)
       setError(null)
+      console.log('DASHBOARD ADMIN - Loading set to true')
 
-      // Cargar datos en paralelo
+      // Cargar datos en paralelo (filtrados por plan si está seleccionado)
+      const planFilter = selectedPlan ? `?planId=${selectedPlan}` : ''
+      console.log('DASHBOARD ADMIN - Starting API calls with filter:', planFilter)
       const [plansRes, objectivesRes, actionsRes, indicatorsRes, usersRes, costCentersRes, indicatorDataRes] =
         await Promise.all([
           apiClient.get('/plans').catch(() => ({ data: [] })),
-          apiClient.get('/strategic-objectives').catch(() => ({ data: [] })),
-          apiClient.get('/strategic-actions').catch(() => ({ data: [] })),
-          apiClient.get('/indicators').catch(() => ({ data: [] })),
+          apiClient.get(`/strategic-objectives${planFilter}`).catch(() => ({ data: [] })),
+          apiClient.get(`/strategic-actions${planFilter}`).catch(() => ({ data: [] })),
+          apiClient.get(`/indicators${planFilter}`).catch(() => ({ data: [] })),
           apiClient.get('/users').catch(() => ({ data: [] })),
           apiClient.get('/cost-centers').catch(() => ({ data: [] })),
-          apiClient.get('/indicator-data/all').catch(() => ({ data: [] }))
+          apiClient.get(`/indicator-data/all${planFilter}`).catch(() => ({ data: [] }))
         ])
+
+      console.log('DASHBOARD ADMIN - API responses received:', {
+        plans: plansRes.data?.length || 0,
+        objectives: objectivesRes.data?.length || 0,
+        actions: actionsRes.data?.length || 0,
+        indicators: indicatorsRes.data?.length || 0,
+        users: usersRes.data?.length || 0,
+        costCenters: costCentersRes.data?.length || 0,
+        indicatorData: indicatorDataRes.data?.length || 0
+      })
 
       const plans = plansRes.data || []
       const objectives = objectivesRes.data || []
@@ -129,6 +175,16 @@ export default function Dashboard() {
       const users = usersRes.data || []
       const costCenters = costCentersRes.data || []
       const indicatorData = indicatorDataRes.data || []
+
+      console.log('DASHBOARD ADMIN - Data extracted:', {
+        plansCount: plans.length,
+        objectivesCount: objectives.length,
+        actionsCount: actions.length,
+        indicatorsCount: indicators.length,
+        usersCount: users.length,
+        costCentersCount: costCenters.length,
+        indicatorDataCount: indicatorData.length
+      })
 
       // Calcular stats
       const statsData: StatCard[] = [
@@ -280,50 +336,64 @@ export default function Dashboard() {
 
       setPendingApprovals(pendingData)
     } catch (err) {
-      console.error('Error cargando dashboard:', err)
+      console.error('DASHBOARD ADMIN - Error in loadDashboardData:', err)
       setError('Error al cargar los datos del dashboard')
+      console.log('DASHBOARD ADMIN - Error state set, loading will be set to false')
     } finally {
+      console.log('DASHBOARD ADMIN - Finally block - setting loading to false')
       setLoading(false)
+      console.log('DASHBOARD ADMIN - Loading set to false in finally')
     }
   }
 
+
+
+  console.log('DASHBOARD ADMIN - Render check:', {
+      loading,
+      error,
+      stats,
+      chartsLoaded,
+      selectedPlan,
+      plans: plans.length
+    })
+
   if (loading) {
+    console.log('DASHBOARD ADMIN - Showing loading state')
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
       </div>
     )
   }
 
-  const COLORS_STATUS = {
-    DRAFT: '#f59e0b',
-    PENDING: '#f97316',
-    APPROVED: '#10b981',
-    REJECTED: '#ef4444'
-  }
-
   return (
-    <div className="space-y-6 pb-12">
-      {/* Header */}
-      <div className="flex justify-between items-start">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Dashboard Administrativo</h1>
-          <p className="text-gray-600 mt-1">Resumen general del sistema SISPLAN</p>
+    <div className="space-y-6">
+      {/* Plan Selector */}
+      <div className="bg-white rounded-xl border border-neutral-200 p-6 shadow-sm">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-neutral-900">Plan Estratégico</h2>
+          <div className="w-12 h-12 bg-primary-100 rounded-lg flex items-center justify-center">
+            <FiTarget className="w-6 h-6 text-primary-600" />
+          </div>
         </div>
-        <button
-          onClick={loadDashboardData}
-          className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 text-sm font-medium"
+        <select
+          value={selectedPlan}
+          onChange={(e) => setSelectedPlan(e.target.value)}
+          className="w-full px-4 py-3 border-2 border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white shadow-sm transition-all duration-200 text-sm"
         >
-          Actualizar
-        </button>
+          <option value="">Todos los planes</option>
+          {plans.map(plan => (
+            <option key={plan.id} value={plan.id} className="py-2">
+              {plan.name} ({plan.startYear} - {plan.endYear})
+            </option>
+          ))}
+        </select>
+        {selectedPlan && (
+          <p className="text-sm text-neutral-600 mt-2">
+            Mostrando métricas del plan seleccionado
+          </p>
+        )}
       </div>
-
-      {error && (
-        <div className="flex items-center gap-3 p-4 bg-red-50 border border-red-200 rounded-lg">
-          <FiAlertCircle className="text-red-600 w-5 h-5" />
-          <span className="text-red-800 text-sm">{error}</span>
-        </div>
-      )}
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -403,7 +473,7 @@ export default function Dashboard() {
                     {/* Capa externa - Datos Aprobados */}
                     <chartComponents.Pie
                       data={[
-                        { name: 'Aprobados', value: dataStatusMetrics.APPROVED, fill: COLORS_STATUS.APPROVED }
+                        { name: 'Aprobados', value: dataStatusMetrics.APPROVED, fill: '#10b981' }
                       ]}
                       dataKey="value"
                       outerRadius={90}
@@ -412,7 +482,7 @@ export default function Dashboard() {
                     {/* Capa media - Datos Pendientes */}
                     <chartComponents.Pie
                       data={[
-                        { name: 'Pendientes', value: dataStatusMetrics.PENDING, fill: COLORS_STATUS.PENDING }
+                        { name: 'Pendientes', value: dataStatusMetrics.PENDING, fill: '#f59e0b' }
                       ]}
                       dataKey="value"
                       outerRadius={70}
@@ -421,7 +491,7 @@ export default function Dashboard() {
                     {/* Capa interna - Datos Borradores */}
                     <chartComponents.Pie
                       data={[
-                        { name: 'Borradores', value: dataStatusMetrics.DRAFT, fill: COLORS_STATUS.DRAFT }
+                        { name: 'Borradores', value: dataStatusMetrics.DRAFT, fill: '#fbbf24' }
                       ]}
                       dataKey="value"
                       outerRadius={50}
@@ -430,7 +500,7 @@ export default function Dashboard() {
                     {/* Centro - Datos Rechazados */}
                     <chartComponents.Pie
                       data={[
-                        { name: 'Rechazados', value: dataStatusMetrics.REJECTED, fill: COLORS_STATUS.REJECTED }
+                        { name: 'Rechazados', value: dataStatusMetrics.REJECTED, fill: '#ef4444' }
                       ]}
                       dataKey="value"
                       outerRadius={30}

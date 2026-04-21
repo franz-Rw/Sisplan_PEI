@@ -291,7 +291,23 @@ export default function OperatorSeguimiento() {
   const loadVariables = async (indicatorId: string) => {
     try {
       const response = await apiClient.get(`/indicator-variables/indicator/${indicatorId}`)
-      setVariables(Array.isArray(response.data) ? response.data : [])
+      const allVariables = Array.isArray(response.data) ? response.data : []
+      
+      console.log('VARIABLES LOADED:', {
+        indicatorId,
+        totalVariables: allVariables.length,
+        variables: allVariables.map(v => ({
+          id: v.id,
+          code: v.code,
+          name: v.name,
+          indicatorId: v.indicatorId
+        })),
+        userCostCenterId
+      })
+      
+      // Las variables no tienen costCenterId - se asignan por indicador
+      // El indicador ya está filtrado por centro de costo del operador
+      setVariables(allVariables)
     } catch (error) {
       console.error('Error loading variables:', error)
       setVariables([])
@@ -759,9 +775,18 @@ export default function OperatorSeguimiento() {
 
   return (
     <div className="space-y-6">
-      {/* Page Title */}
+      {/* Page Title with User Info */}
       <div>
         <h1 className="text-2xl font-bold text-neutral-900">Seguimiento de Indicadores</h1>
+        <div className="flex items-center gap-4 mt-2">
+          <span className="text-neutral-600">
+            {user?.name} - Rol: {user?.role === 'OPERATOR' ? 'Operador' : user?.role}
+          </span>
+          <span className="text-neutral-400">|</span>
+          <span className="text-neutral-600 font-medium">
+            Centro de Costo: {user?.costCenter?.description || user?.costCenter?.code || 'No asignado'}
+          </span>
+        </div>
         <p className="text-neutral-600 mt-1">Gestiona y registra los datos de indicadores asignados a tu centro de costo</p>
       </div>
 
@@ -952,14 +977,25 @@ export default function OperatorSeguimiento() {
                                                               </tr>
                                                             </thead>
                                                             <tbody className="divide-y divide-emerald-100 bg-white">
-                                                              {variables.map(variable => (
-                                                                <tr key={variable.id} className="hover:bg-emerald-50 transition-colors">
-                                                                  <td className="px-4 py-3">
-                                                                    <div className="text-sm font-medium text-neutral-900">{variable.code}</div>
-                                                                  </td>
-                                                                  <td className="px-4 py-3">
-                                                                    <div className="text-sm text-neutral-900">{variable.name}</div>
-                                                                  </td>
+                                                              {(() => {
+                                                                const filteredVariables = variables.filter(variable => variable.indicatorId === indicator.id)
+                                                                console.log('OBJECTIVES TAB - Variables for indicator:', {
+                                                                  indicatorId: indicator.id,
+                                                                  indicatorCode: indicator.code,
+                                                                  totalVariables: variables.length,
+                                                                  filteredVariables: filteredVariables.length,
+                                                                  filteredVariableIds: filteredVariables.map(v => v.id)
+                                                                })
+                                                                return filteredVariables
+                                                              })()
+                                                              .map(variable => (
+                                                                    <tr key={variable.id} className="hover:bg-emerald-50 transition-colors">
+                                                                      <td className="px-4 py-3">
+                                                                        <div className="text-sm font-medium text-neutral-900">{variable.code}</div>
+                                                                      </td>
+                                                                      <td className="px-4 py-3">
+                                                                        <div className="text-sm text-neutral-900">{variable.name}</div>
+                                                                      </td>
                                                                   <td className="px-4 py-3 whitespace-nowrap text-sm font-medium">
                                                                     <div className="flex items-center gap-2">
                                                                       <button
@@ -1283,7 +1319,29 @@ export default function OperatorSeguimiento() {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-neutral-200">
-                    {actions
+                    {(() => {
+                        const filteredActions = actions.filter(action => {
+                          // Si hay un objetivo seleccionado, filtrar acciones por ese objetivo
+                          if (selectedObjective) {
+                            return action.objectiveId === selectedObjective
+                          }
+                          // Si no hay objetivo seleccionado, mostrar todas las acciones
+                          return true
+                        })
+                        
+                        console.log('ACTIONS FILTERED BY OBJECTIVE:', {
+                          selectedObjective,
+                          totalActions: actions.length,
+                          filteredActions: filteredActions.length,
+                          filteredActionIds: filteredActions.map(a => ({
+                            id: a.id,
+                            code: a.code,
+                            objectiveId: a.objectiveId
+                          }))
+                        })
+                        
+                        return filteredActions
+                      })()
                       .map(action => (
                         <React.Fragment key={action.id}>
                           <tr className="hover:bg-neutral-50">
@@ -1386,9 +1444,18 @@ export default function OperatorSeguimiento() {
                                                                 </tr>
                                                               </thead>
                                                               <tbody className="divide-y divide-emerald-100 bg-white">
-                                                                {variables
-                                                                  .filter(variable => variable.indicatorId === indicator.id)
-                                                                  .map(variable => (
+                                                                {(() => {
+                                                                  const filteredVariables = variables.filter(variable => variable.indicatorId === indicator.id)
+                                                                  console.log('ACTIONS TAB - Variables for indicator:', {
+                                                                    indicatorId: indicator.id,
+                                                                    indicatorCode: indicator.code,
+                                                                    totalVariables: variables.length,
+                                                                    filteredVariables: filteredVariables.length,
+                                                                    filteredVariableIds: filteredVariables.map(v => v.id)
+                                                                  })
+                                                                  return filteredVariables
+                                                                })()
+                                                                .map(variable => (
                                                                     <tr key={variable.id} className="hover:bg-emerald-50 transition-colors">
                                                                       <td className="px-4 py-3">
                                                                         <div className="text-sm font-medium text-neutral-900">{variable.code}</div>

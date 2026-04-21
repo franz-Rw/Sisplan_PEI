@@ -55,7 +55,244 @@ export default function ReportesCentrosCosto() {
       document.body.removeChild(link)
     }
     
-    // TODO: Implement Excel and PDF export
+    // PDF Export (complete implementation)
+    if (format === 'pdf') {
+      exportToPDF()
+    }
+    
+    // TODO: Implement Excel export
+  }
+
+  const exportToPDF = () => {
+    // Importar jsPDF dinámicamente
+    const script = document.createElement('script')
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'
+    script.onload = () => {
+      // @ts-ignore
+      const { jsPDF } = window.jspdf
+      
+      // Crear documento PDF con formato A4 vertical
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      })
+      
+      // Configuración de página
+      const pageWidth = pdf.internal.pageSize.getWidth()
+      const pageHeight = pdf.internal.pageSize.getHeight()
+      const margin = 20
+      const contentWidth = pageWidth - (margin * 2)
+      
+      // Configuración de fuentes
+      pdf.setFont('helvetica', 'normal')
+      
+      // Función para agregar encabezado profesional a cada página
+      const addHeader = (pageNumber: number, totalPages: number) => {
+        // Fondo del encabezado
+        pdf.setFillColor(245, 245, 245)
+        pdf.rect(margin, 10, contentWidth, 35, 'F')
+        
+        // Línea superior del encabezado
+        pdf.setLineWidth(1)
+        pdf.setDrawColor(100, 100, 100)
+        pdf.line(margin, 10, pageWidth - margin, 10)
+        
+        // Título del reporte centrado
+        pdf.setFontSize(18)
+        pdf.setFont('helvetica', 'bold')
+        pdf.setTextColor(50, 50, 50)
+        pdf.text('Reporte de Centros de Costo', pageWidth / 2, 22, { align: 'center', maxWidth: contentWidth })
+        
+        // Subtítulo con información
+        pdf.setFontSize(11)
+        pdf.setFont('helvetica', 'normal')
+        pdf.setTextColor(80, 80, 80)
+        const currentDate = new Date().toLocaleDateString('es-PE', { 
+          year: 'numeric', 
+          month: 'long', 
+          day: 'numeric' 
+        })
+        pdf.text(`Generado el ${currentDate}`, pageWidth / 2, 32, { align: 'center', maxWidth: contentWidth })
+        pdf.text(`Total de registros: ${costCenters.length} centros`, pageWidth / 2, 39, { align: 'center', maxWidth: contentWidth })
+        
+        // Numeración de página en esquina superior derecha
+        pdf.setFontSize(9)
+        pdf.setFont('helvetica', 'italic')
+        pdf.setTextColor(120, 120, 120)
+        pdf.text(`Página ${pageNumber} de ${totalPages}`, pageWidth - margin - 5, 15, { align: 'right' })
+        
+        // Línea inferior del encabezado
+        pdf.setLineWidth(0.8)
+        pdf.setDrawColor(150, 150, 150)
+        pdf.line(margin, 45, pageWidth - margin, 45)
+        
+        // Restaurar color por defecto
+        pdf.setTextColor(0, 0, 0)
+        
+        return 52 // Espacio después del encabezado
+      }
+      
+      // Función para agregar tabla con presentación profesional
+      const addTable = (startY: number, startIndex: number, endIndex: number) => {
+        let currentY = startY
+        
+        // Configuración de columnas con alineación específica
+        const colWidths = [35, contentWidth - 70, 35]
+        const colAlignments = ['center', 'left', 'center']
+        const headers = ['Código', 'Descripción', 'Estado']
+        
+        // Encabezados de tabla con alineación profesional
+        pdf.setFontSize(10)
+        pdf.setFont('helvetica', 'bold')
+        pdf.setFillColor(240, 240, 240) // Fondo gris claro para encabezados
+        
+        // Dibujar fondo de encabezados
+        pdf.rect(margin, currentY - 6, contentWidth, 12, 'F')
+        
+        headers.forEach((header, index) => {
+          let x = margin
+          for (let j = 0; j < index; j++) {
+            x += colWidths[j]
+          }
+          
+          // Alineación según columna
+          let textX = x
+          if (colAlignments[index] === 'center') {
+            textX = x + colWidths[index] / 2
+            pdf.text(header, textX, currentY, { align: 'center', maxWidth: colWidths[index] })
+          } else if (colAlignments[index] === 'left') {
+            textX = x + 2
+            pdf.text(header, textX, currentY, { align: 'left', maxWidth: colWidths[index] })
+          }
+        })
+        
+        currentY += 8
+        
+        // Línea después de encabezados
+        pdf.setLineWidth(0.5)
+        pdf.setDrawColor(150, 150, 150)
+        pdf.line(margin, currentY, pageWidth - margin, currentY)
+        currentY += 6
+        
+        // Datos de la tabla con presentación optimizada
+        pdf.setFont('helvetica', 'normal')
+        pdf.setFontSize(9)
+        
+        for (let i = startIndex; i < endIndex && i < costCenters.length; i++) {
+          const center = costCenters[i]
+          
+          // Verificar si hay espacio para otra fila (mínimo 15mm para fila completa)
+          if (currentY > pageHeight - 25) {
+            pdf.addPage()
+            currentY = addHeader(pdf.internal.getCurrentPageInfo().pageNumber, Math.ceil(costCenters.length / 20))
+            currentY = addTable(currentY, i, Math.min(endIndex, costCenters.length))
+            return currentY
+          }
+          
+          // Calcular altura de fila según contenido
+          const descriptionLines = pdf.splitTextToSize(center.description, colWidths[1] - 4)
+          const rowHeight = Math.max(8, descriptionLines.length * 4 + 4)
+          
+          // Dibujar fondo de fila (alternado)
+          if (i % 2 === 0) {
+            pdf.setFillColor(250, 250, 250)
+            pdf.rect(margin, currentY - 4, contentWidth, rowHeight, 'F')
+          }
+          
+          // Código - Centrado
+          const codeX = margin + colWidths[0] / 2
+          pdf.text(center.code, codeX, currentY + (rowHeight / 2) - 2, { 
+            align: 'center', 
+            maxWidth: colWidths[0] - 4,
+            baseline: 'middle'
+          })
+          
+          // Descripción - Izquierda con altura automática
+          const descX = margin + colWidths[0] + 2
+          let descY = currentY + 2
+          
+          descriptionLines.forEach((line: string, lineIndex: number) => {
+            if (lineIndex === 0) {
+              pdf.text(line, descX, descY, { align: 'left', maxWidth: colWidths[1] - 4 })
+            } else {
+              pdf.text(line, descX, descY + (lineIndex * 3.5), { align: 'left', maxWidth: colWidths[1] - 4 })
+            }
+          })
+          
+          // Estado - Centrado horizontal y verticalmente
+          const statusText = getStatusDisplayName(center.status)
+          const statusColor = center.status === 'ACTIVE' ? [0, 100, 0] : [200, 0, 0] // Verde/rojo más suaves
+          const statusX = margin + colWidths[0] + colWidths[1] + colWidths[2] / 2
+          const statusY = currentY + (rowHeight / 2) - 2
+          
+          pdf.setTextColor(...statusColor)
+          pdf.setFont('helvetica', 'bold')
+          pdf.text(statusText, statusX, statusY, { 
+            align: 'center', 
+            maxWidth: colWidths[2] - 4,
+            baseline: 'middle'
+          })
+          
+          // Restaurar fuente y color
+          pdf.setFont('helvetica', 'normal')
+          pdf.setTextColor(0, 0, 0)
+          
+          // Línea separadora entre filas (más sutil)
+          if (i < endIndex - 1 && i < costCenters.length - 1) {
+            pdf.setLineWidth(0.2)
+            pdf.setDrawColor(220, 220, 220)
+            pdf.line(margin, currentY + rowHeight - 1, pageWidth - margin, currentY + rowHeight - 1)
+          }
+          
+          currentY += rowHeight + 2 // Espaciado compacto entre filas
+        }
+        
+        return currentY
+      }
+      
+      // Calcular páginas necesarias
+      const rowsPerPage = 20
+      const totalPages = Math.ceil(costCenters.length / rowsPerPage)
+      
+      // Agregar contenido página por página
+      for (let page = 1; page <= totalPages; page++) {
+        if (page > 1) {
+          pdf.addPage()
+        }
+        
+        const startY = addHeader(page, totalPages)
+        const startIndex = (page - 1) * rowsPerPage
+        const endIndex = Math.min(startIndex + rowsPerPage, costCenters.length)
+        
+        addTable(startY, startIndex, endIndex)
+      }
+      
+      // Pie de página profesional
+      pdf.setFillColor(240, 240, 240)
+      pdf.rect(margin, pageHeight - 15, contentWidth, 15, 'F')
+      
+      pdf.setLineWidth(0.5)
+      pdf.setDrawColor(150, 150, 150)
+      pdf.line(margin, pageHeight - 15, pageWidth - margin, pageHeight - 15)
+      
+      pdf.setFontSize(8)
+      pdf.setFont('helvetica', 'italic')
+      pdf.setTextColor(100, 100, 100)
+      pdf.text('SISPLAN - Sistema de Planificación Estratégica Integral', pageWidth / 2, pageHeight - 7, { 
+        align: 'center', 
+        maxWidth: contentWidth 
+      })
+      
+      // Restaurar color por defecto
+      pdf.setTextColor(0, 0, 0)
+      
+      // Generar y descargar PDF
+      const fileName = `centros_costo_${new Date().toISOString().split('T')[0]}.pdf`
+      pdf.save(fileName)
+    }
+    
+    document.head.appendChild(script)
   }
 
   const getStatusDisplayName = (status: string) => {

@@ -635,9 +635,18 @@ export default function OperatorReportes() {
 
   return (
     <div className="space-y-6">
-      {/* Page Title */}
+      {/* Page Title with User Info */}
       <div>
         <h1 className="text-2xl font-bold text-neutral-900">Reportes de Indicadores</h1>
+        <div className="flex items-center gap-4 mt-2">
+          <span className="text-neutral-600">
+            {user?.name} - Rol: {user?.role === 'OPERATOR' ? 'Operador' : user?.role}
+          </span>
+          <span className="text-neutral-400">|</span>
+          <span className="text-neutral-600 font-medium">
+            Centro de Costo: {user?.costCenter?.description || user?.costCenter?.code || 'No asignado'}
+          </span>
+        </div>
         <p className="text-neutral-600 mt-1">Genera y exporta reportes de datos registrados</p>
       </div>
 

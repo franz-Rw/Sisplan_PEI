@@ -110,10 +110,37 @@ export const indicatorVariablesController = {
     try {
       const { indicatorId } = req.params
       
+      console.log('=== DEBUG: getByIndicator ===')
+      console.log('IndicatorId:', indicatorId)
+      
+      // Verificar que el indicador existe
+      const indicator = await prisma.indicator.findUnique({
+        where: { id: indicatorId },
+        select: { id: true, code: true, statement: true, responsibleId: true }
+      })
+      
+      console.log('Indicator found:', indicator ? 'YES' : 'NO')
+      if (indicator) {
+        console.log('Indicator details:', {
+          id: indicator.id,
+          code: indicator.code,
+          responsibleId: indicator.responsibleId
+        })
+      }
+      
       const variables = await prisma.indicatorVariable.findMany({
         where: { indicatorId },
         orderBy: { code: 'asc' }
       })
+
+      console.log('Variables found:', variables.length)
+      console.log('Variables:', variables.map(v => ({
+        id: v.id,
+        code: v.code,
+        name: v.name,
+        indicatorId: v.indicatorId
+      })))
+      console.log('=== END DEBUG: getByIndicator ===')
 
       return res.json(variables)
     } catch (error) {

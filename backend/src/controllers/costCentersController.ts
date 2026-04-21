@@ -40,7 +40,18 @@ export const costCentersController = {
         orderBy: { code: 'asc' }
       })
 
-      console.log('Cost centers found:', costCenters.length)
+      // Logging detallado para diagnóstico
+      console.log('GET ALL - Cost centers encontrados:', costCenters.length)
+      costCenters.forEach((cc, index) => {
+        console.log(`GET ALL - Centro ${index + 1}:`, {
+          id: cc.id,
+          code: cc.code,
+          assignedUserId: cc.assignedUserId,
+          assignedUser: cc.assignedUser,
+          hasAssignedUser: !!cc.assignedUser
+        })
+      })
+
       return res.json(costCenters)
     } catch (error) {
       console.error('Error al obtener centros de costo:', error)
@@ -248,6 +259,15 @@ export const costCentersController = {
         }
       }
 
+      // Logging detallado del payload
+      console.log('CREATE - Payload recibido:', {
+        code: code.trim(),
+        description: description?.trim() || null,
+        parentId: parentId || null,
+        assignedUserId: assignedUserId || null,
+        status: status as CostCenterStatus
+      })
+
       const costCenter = await prisma.costCenter.create({
         data: {
           code: code.trim(),
@@ -266,8 +286,22 @@ export const costCentersController = {
         }
       })
 
-      console.log('CREATE - Cost center created successfully:', costCenter)
-      return res.status(201).json(costCenter)
+      // Verificación de persistencia
+      console.log('CREATE - Centro guardado en BD:', {
+        id: costCenter.id,
+        code: costCenter.code,
+        assignedUserId: costCenter.assignedUserId,
+        assignedUser: costCenter.assignedUser
+      })
+
+      // Verificación de respuesta
+      const responseData = {
+        ...costCenter,
+        assignedUser: costCenter.assignedUser
+      }
+      console.log('CREATE - Respuesta que se enviará:', responseData)
+
+      return res.status(201).json(responseData)
     } catch (error: any) {
       console.error('Error al crear centro de costo:', error)
       
@@ -352,15 +386,31 @@ export const costCentersController = {
         }
       }
 
+      // Si se está asignando un usuario, verificar si ya está asignado a otro centro
+      if (assignedUserId !== undefined && assignedUserId !== currentCostCenter.assignedUserId) {
+        const existingAssignment = await prisma.costCenter.findFirst({
+          where: { assignedUserId: assignedUserId || null },
+          select: { id: true, code: true, description: true }
+        })
+        
+        if (existingAssignment && existingAssignment.id !== id) {
+          console.log(`UPDATE - Usuario ${assignedUserId} será desasignado del centro ${existingAssignment.code} (${existingAssignment.id})`)
+        }
+      }
+
+      // Logging detallado del payload
+      const updateData = {
+        ...(code && { code: code.trim() }),
+        ...(description !== undefined && { description: description?.trim() || null }),
+        ...(parentId !== undefined && { parentId: parentId || null }),
+        ...(assignedUserId !== undefined && { assignedUserId: assignedUserId || null }),
+        ...(status && { status: status as CostCenterStatus })
+      }
+      console.log('UPDATE - Payload para actualización:', updateData)
+
       const costCenter = await prisma.costCenter.update({
         where: { id },
-        data: {
-          ...(code && { code: code.trim() }),
-          ...(description !== undefined && { description: description?.trim() || null }),
-          ...(parentId !== undefined && { parentId: parentId || null }),
-          ...(assignedUserId !== undefined && { assignedUserId: assignedUserId || null }),
-          ...(status && { status: status as CostCenterStatus })
-        },
+        data: updateData,
         include: {
           assignedUser: {
             select: { id: true, name: true, email: true }
@@ -371,8 +421,22 @@ export const costCentersController = {
         }
       })
 
-      console.log('UPDATE - Cost center updated successfully:', costCenter)
-      return res.json(costCenter)
+      // Verificación de persistencia
+      console.log('UPDATE - Centro actualizado en BD:', {
+        id: costCenter.id,
+        code: costCenter.code,
+        assignedUserId: costCenter.assignedUserId,
+        assignedUser: costCenter.assignedUser
+      })
+
+      // Verificación de respuesta
+      const responseData = {
+        ...costCenter,
+        assignedUser: costCenter.assignedUser
+      }
+      console.log('UPDATE - Respuesta que se enviará:', responseData)
+
+      return res.json(responseData)
     } catch (error: any) {
       console.error('Error al actualizar centro de costo:', error)
       

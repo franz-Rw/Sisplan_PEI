@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { FiDownload, FiFilter, FiCalendar, FiAlertCircle, FiRefreshCw } from 'react-icons/fi'
 import apiClient from '@services/api'
+import { useAuth } from '@context/AuthContext'
 
 interface RejectedRecord {
   id: string
@@ -27,7 +28,8 @@ interface RejectedRecord {
 }
 
 export default function RejectedRecords() {
-    const [rejectedRecords, setRejectedRecords] = useState<RejectedRecord[]>([])
+  const { user } = useAuth()
+  const [rejectedRecords, setRejectedRecords] = useState<RejectedRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [filterYear, setFilterYear] = useState<string>('')
   const [filterCostCenter, setFilterCostCenter] = useState<string>('')
@@ -122,7 +124,16 @@ export default function RejectedRecords() {
     <div className="p-6">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900 mb-2">Registros Rechazados</h1>
-        <p className="text-gray-600">
+        <div className="flex items-center gap-4 mt-2">
+          <span className="text-gray-600">
+            {user?.name} - Rol: {user?.role === 'OPERATOR' ? 'Operador' : user?.role}
+          </span>
+          <span className="text-gray-400">|</span>
+          <span className="text-gray-600 font-medium">
+            Centro de Costo: {user?.costCenter?.description || user?.costCenter?.code || 'No asignado'}
+          </span>
+        </div>
+        <p className="text-gray-600 mt-1">
           Visualización y gestión de registros que han sido rechazados por el administrador.
           Estos registros pueden ser corregidos y enviados nuevamente para aprobación.
         </p>

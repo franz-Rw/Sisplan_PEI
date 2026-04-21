@@ -54,10 +54,40 @@ export default function OperatorDashboard() {
   const [recentActivities, setRecentActivities] = useState<RecentActivity[]>([])
   const [loading, setLoading] = useState(true)
   const [approvedCount, setApprovedCount] = useState(0)
+  const [plans, setPlans] = useState<any[]>([])
+  const [selectedPlan, setSelectedPlan] = useState<string>('')
 
   useEffect(() => {
-    loadDashboardData()
+    loadPlans()
   }, [])
+
+  useEffect(() => {
+    if (selectedPlan) {
+      loadDashboardData()
+    }
+  }, [selectedPlan])
+
+  useEffect(() => {
+    // Cargar datos iniciales solo si hay un plan seleccionado
+    if (selectedPlan) {
+      loadDashboardData()
+    }
+  }, [user?.costCenter?.code]) // También cargar cuando cambia el usuario o su centro de costo
+
+  const loadPlans = async () => {
+    try {
+      const response = await apiClient.get('/plans')
+      setPlans(response.data || [])
+      
+      // Seleccionar el primer plan por defecto si no hay selección
+      if (response.data && response.data.length > 0 && !selectedPlan) {
+        setSelectedPlan(response.data[0].id)
+      }
+    } catch (error) {
+      console.error('Error loading plans:', error)
+      setPlans([])
+    }
+  }
 
   const loadDashboardData = async () => {
     try {
@@ -70,12 +100,19 @@ export default function OperatorDashboard() {
         return
       }
 
-      // Cargar datos del usuario (filtrados por costCenter en backend)
+      // Cargar datos del usuario (filtrados por costCenter y plan en backend)
       const [indicatorDataRes] = await Promise.all([
-        apiClient.get('/indicator-data/all').catch(() => ({ data: [] })),
+        apiClient.get(`/indicator-data/all?planId=${selectedPlan}`).catch(() => ({ data: [] })),
       ])
 
       const indicatorData = indicatorDataRes.data || []
+      
+      console.log('DASHBOARD OPERATOR - Datos recibidos:', {
+        selectedPlan,
+        userCostCenter: user?.costCenter?.code,
+        totalIndicatorData: indicatorData.length,
+        indicatorDataSample: indicatorData.slice(0, 2)
+      })
     
       // Extraer objetivos y acciones ÚNICAMENTE de los datos del usuario
       const uniqueObjectives = new Set<string>()
@@ -105,6 +142,19 @@ export default function OperatorDashboard() {
 
       setApprovedCount(approvedVariables)
 
+      console.log('DASHBOARD METRICS CALCULATION:', {
+        selectedPlan,
+        userCostCenter: user?.costCenter?.code,
+        totalIndicatorData: indicatorData.length,
+        uniqueObjectives: uniqueObjectives.size,
+        uniqueActions: uniqueActions.size,
+        uniqueVariables: uniqueVariables.size,
+        assignedVariables,
+        submittedVariables,
+        pendingApproval,
+        approvedVariables
+      })
+
       setStats({
         totalObjectives: uniqueObjectives.size,
         totalObjectiveIndicators: uniqueObjectives.size,
@@ -132,7 +182,7 @@ export default function OperatorDashboard() {
       })
 
       // Actividad reciente de los últimos registros asignados al usuario
-      const recentData = filteredIndicatorData.slice(0, 4).map((d: any) => {
+      const recentData = indicatorData.slice(0, 4).map((d: any) => {
         const type: 'data_registered' | 'data_approved' | 'data_rejected' = 
           d.status === 'APPROVED' || d.status === 'approved' ? 'data_approved' :
           d.status === 'REJECTED' || d.status === 'rejected' ? 'data_rejected' : 'data_registered'
@@ -307,6 +357,33 @@ export default function OperatorDashboard() {
             <p className="text-sm text-neutral-700">Pendientes</p>
           </div>
         </div>
+      </div>
+
+      {/* Plan Selector */}
+      <div className="bg-white rounded-xl border border-neutral-200 p-6 shadow-sm">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-neutral-900">Plan Estratégico</h2>
+          <div className="w-12 h-12 bg-primary-100 rounded-lg flex items-center justify-center">
+            <FiTarget className="w-6 h-6 text-primary-600" />
+          </div>
+        </div>
+        <select
+          value={selectedPlan}
+          onChange={(e) => setSelectedPlan(e.target.value)}
+          className="w-full px-4 py-3 border-2 border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white shadow-sm transition-all duration-200 text-sm"
+        >
+          <option value="">Seleccionar plan...</option>
+          {plans.map(plan => (
+            <option key={plan.id} value={plan.id} className="py-2">
+              {plan.name} ({plan.startYear} - {plan.endYear})
+            </option>
+          ))}
+        </select>
+        {selectedPlan && (
+          <p className="text-sm text-neutral-600 mt-2">
+            Mostrando métricas del plan seleccionado
+          </p>
+        )}
       </div>
 
       {/* Summary Cards */}
