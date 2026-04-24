@@ -14,14 +14,40 @@ const NODE_ENV = process.env.NODE_ENV || 'development'
 
 // Middleware de seguridad y parseo
 app.use(helmet())
+// CORS - Permitir múltiples orígenes para desarrollo y producción
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  'http://localhost:5174',
+  // Servidor de producción municipal - CAMBIAR esta IP si es necesario
+  'http://192.168.2.7:5173', // Servidor de producción
+  'http://192.168.2.7', // Servidor sin puerto
+  'http://192.168.2.5:5173', // IP alternativa si se necesita
+  'http://192.168.2.5', // IP alternativa sin puerto
+  // IPs de desarrollo local
+  'http://192.168.1.100:5173', // IP local de la municipalidad
+  'http://192.168.1.100', // Por si accede sin puerto
+  'http://192.168.137.1:5173', // Tu IP de red local
+  'http://192.168.137.1', // Tu IP sin puerto
+  'http://192.168.2.45:5173', // Tu otra IP de red
+  'http://192.168.2.45', // Tu otra IP sin puerto
+  // Permitir cualquier IP de red local para desarrollo
+  /^http:\/\/192\.168\.\d+\.\d+(:5173)?$/,
+  /^http:\/\/10\.0\.\d+\.\d+(:5173)?$/,
+  /^http:\/\/172\.16\.\d+\.\d+(:5173)?$/,
+]
+
+// Agregar origen desde variables de entorno si existe
+if (process.env.CORS_ORIGIN) {
+  allowedOrigins.push(...process.env.CORS_ORIGIN.split(','))
+}
+
 app.use(
   cors({
-    origin: [
-      process.env.CORS_ORIGIN || 'http://localhost:5173',
-      'http://127.0.0.1:54131',
-      'http://localhost:5174'
-    ],
+    origin: allowedOrigins,
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   })
 )
 app.use(morgan(NODE_ENV === 'development' ? 'dev' : 'combined'))
@@ -74,13 +100,14 @@ app.use('/api', (_req: any, res: any) => {
   res.json({ message: 'API v1', status: 'running' })
 })
 
-app.listen(PORT, () => {
+app.listen(Number(PORT), '0.0.0.0', () => {
   console.log(`
   ╭──────────────────────────────────╮
   │  🚀 SISPLAN FR Backend            │
   │  Servidor corriendo en puerto:    │
   │  ${PORT}                           │
   │  Ambiente: ${NODE_ENV}             │
+  │  Escuchando en 0.0.0.0 (red)      │
   ╰──────────────────────────────────╯
   `)
 })
