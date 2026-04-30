@@ -1,8 +1,13 @@
 /// <reference types="vite/client" />
 import axios, { AxiosInstance, AxiosResponse, AxiosError, InternalAxiosRequestConfig } from 'axios'
 
+const resolvedBaseURL =
+  import.meta.env.DEV
+    ? '/api'
+    : import.meta.env.VITE_API_URL || '/api'
+
 const apiClient: AxiosInstance = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://192.168.2.45:3000/api',
+  baseURL: resolvedBaseURL,
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',

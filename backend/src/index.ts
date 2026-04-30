@@ -29,12 +29,14 @@ const allowedOrigins = [
   'http://192.168.1.100', // Por si accede sin puerto
   'http://192.168.137.1:5173', // Tu IP de red local
   'http://192.168.137.1', // Tu IP sin puerto
+  'http://192.168.137.1:5174', // Tu IP de red local puerto 5174
   'http://192.168.2.45:5173', // Tu otra IP de red
   'http://192.168.2.45', // Tu otra IP sin puerto
+  'http://192.168.2.45:5174', // Tu otra IP de red puerto 5174
   // Permitir cualquier IP de red local para desarrollo
-  /^http:\/\/192\.168\.\d+\.\d+(:5173)?$/,
-  /^http:\/\/10\.0\.\d+\.\d+(:5173)?$/,
-  /^http:\/\/172\.16\.\d+\.\d+(:5173)?$/,
+  /^http:\/\/192\.168\.\d+\.\d+(:517[34])?$/,
+  /^http:\/\/10\.0\.\d+\.\d+(:517[34])?$/,
+  /^http:\/\/172\.16\.\d+\.\d+(:517[34])?$/,
 ]
 
 // Agregar origen desde variables de entorno si existe
@@ -53,6 +55,7 @@ app.use(
 app.use(morgan(NODE_ENV === 'development' ? 'dev' : 'combined'))
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
+
 
 // Health check
 app.get('/health', (_req: any, res: any) => {
@@ -84,7 +87,7 @@ app.use('/api/indicator-variables', indicatorVariablesRoutes)
 app.use('/api/indicator-data', indicatorDataRoutes)
 app.use('/api/deadline-configs', deadlineConfigRoutes)
 app.use('/api/reports', reportsRoutes)
-app.use('/api/indicator-data', indicatorExceptionsRoutes)
+app.use('/api/indicator-exceptions', indicatorExceptionsRoutes)
 app.use('/api/dynamic-formulas', dynamicFormulasRoutes)
 
 // Error handling middleware

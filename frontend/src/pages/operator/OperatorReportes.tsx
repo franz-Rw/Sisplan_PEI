@@ -196,9 +196,11 @@ export default function OperatorReportes() {
       setLoading(true)
       const data = await indicatorDataService.getByVariableAndDateRange(variableId, dateFrom, dateTo)
       setIndicatorData(data)
+      return data
     } catch (error) {
       console.error('Error loading indicator data:', error)
       setIndicatorData([])
+      return []
     } finally {
       setLoading(false)
     }
@@ -225,10 +227,10 @@ export default function OperatorReportes() {
       return
     }
 
-    await loadIndicatorData(selectedVariable.id, reportDateFrom, reportDateTo)
+    const data = await loadIndicatorData(selectedVariable.id, reportDateFrom, reportDateTo)
 
     // Verificar si hay datos
-    if (indicatorData.length === 0) {
+    if (data.length === 0) {
       // Mostrar modal para ingresar motivo
       setShowReportModal(false)
       setShowNoDataModal(true)
@@ -283,7 +285,7 @@ export default function OperatorReportes() {
       formData.append('costCenterId', userCostCenterId!)
 
       // Enviar al backend
-      const response = await apiClient.post('/indicator-data/exception', formData, {
+      const response = await apiClient.post('/indicator-exceptions/exception', formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
         }
@@ -530,7 +532,10 @@ export default function OperatorReportes() {
             </label>
             <select
               value={selectedObjectiveActionId}
-              onChange={(e) => setSelectedObjectiveActionId(e.target.value)}
+              onChange={(e) => {
+                console.log('🔍 DEBUG - Acción seleccionada:', e.target.value)
+                setSelectedObjectiveActionId(e.target.value)
+              }}
               disabled={!selectedPlanId}
               className="w-full px-4 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:bg-neutral-100"
             >
@@ -544,7 +549,7 @@ export default function OperatorReportes() {
                   if (activeTab === 'objectives') {
                     return !selectedObjectiveActionId || item.id === selectedObjectiveActionId
                   } else {
-                    return !selectedObjectiveActionId || (item as any).objectiveId === selectedObjectiveActionId
+                    return true // Mostrar todas las acciones estratégicas
                   }
                 })
                 .map(item => (
@@ -674,6 +679,8 @@ export default function OperatorReportes() {
             setSelectedPlanId('')
             setSelectedObjectiveActionId('')
             setSelectedIndicatorId('')
+            setObjectives([])
+            setActions([])
             setVariables([])
           }}
           className={`px-4 py-3 font-medium border-b-2 transition ${

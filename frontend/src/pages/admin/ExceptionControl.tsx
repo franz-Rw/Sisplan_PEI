@@ -4,12 +4,14 @@ import apiClient from '@services/api'
 
 interface Exception {
   id: string
+  exceptionType: 'ioei' | 'iaei'
   variableId: string
   reason: string
   periodFrom: string
   periodTo: string
   costCenterId: string
   supportFile: string
+  supportFileOriginal: string
   status: 'PENDING' | 'APPROVED' | 'REJECTED'
   submittedBy: string
   reviewComment?: string
@@ -30,7 +32,13 @@ interface Exception {
         id: string
         code: string
         statement: string
-        objective: {
+        plan?: {
+          id: string
+          name: string
+          startYear: number
+          endYear: number
+        }
+        objective?: {
           id: string
           code: string
           statement: string
@@ -73,11 +81,21 @@ export default function ExceptionControl() {
   const [selectedException, setSelectedException] = useState<Exception | null>(null)
   const [newStatus, setNewStatus] = useState<'APPROVED' | 'REJECTED'>('APPROVED')
   const [reviewComment, setReviewComment] = useState('')
-  const [showMessage, setShowMessage] = useState<{ type: 'success' | 'error', message: string } | null>(null)
+  const [showMessage, setShowMessage] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
 
   useEffect(() => {
     loadExceptions()
   }, [activeTab, statusFilter])
+
+  useEffect(() => {
+    if (!showMessage) return
+
+    const timeout = window.setTimeout(() => {
+      setShowMessage(null)
+    }, 4000)
+
+    return () => window.clearTimeout(timeout)
+  }, [showMessage])
 
   const loadExceptions = async () => {
     try {
@@ -88,11 +106,12 @@ export default function ExceptionControl() {
         params.append('status', statusFilter)
       }
 
-      const response = await apiClient.get(`/indicator-data/exceptions?${params}`)
+      const response = await apiClient.get(`/indicator-exceptions?${params}`)
       setExceptions(response.data || [])
     } catch (error) {
       console.error('Error loading exceptions:', error)
       setExceptions([])
+      setShowMessage({ type: 'error', message: 'Error al cargar las excepciones' })
     } finally {
       setLoading(false)
     }
@@ -102,19 +121,21 @@ export default function ExceptionControl() {
     if (!selectedException) return
 
     try {
-      const response = await apiClient.put(`/indicator-data/exceptions/${selectedException.id}/status`, {
+      const response = await apiClient.put(`/indicator-exceptions/exceptions/${selectedException.id}/status`, {
         status: newStatus,
-        reviewComment
+        reviewComment,
       })
 
       if (response.data.success) {
         setShowStatusModal(false)
         setSelectedException(null)
         setReviewComment('')
+        setShowMessage({ type: 'success', message: 'Estado de excepción actualizado correctamente' })
         loadExceptions()
       }
     } catch (error) {
       console.error('Error updating exception status:', error)
+      setShowMessage({ type: 'error', message: 'Error al actualizar el estado de la excepción' })
     }
   }
 
@@ -122,23 +143,44 @@ export default function ExceptionControl() {
     if (!confirm('¿Está seguro de eliminar esta excepción? Esta acción no se puede deshacer.')) {
       return
     }
-    
+
     try {
-      await apiClient.delete(`/exceptions/${exceptionId}`)
+      await apiClient.delete(`/indicator-exceptions/exceptions/${exceptionId}`)
       loadExceptions()
       setShowMessage({ type: 'success', message: 'Excepción eliminada correctamente' })
     } catch (error) {
-      console.error('Error eliminando excepción:', error)
-      setShowMessage({ type: 'error', message: 'Error al eliminar excepción' })
+      console.error('Error deleting exception:', error)
+      setShowMessage({ type: 'error', message: 'Error al eliminar la excepción' })
     }
   }
 
-  const handleDownloadFile = async (exception: Exception) => {
-    // Simular descarga de archivo
-    const link = document.createElement('a')
-    link.href = '#'
-    link.download = exception.supportFile
-    link.click()
+  const handleSupportFile = async (exception: Exception, mode: 'view' | 'download') => {
+    try {
+      const response = await apiClient.get(`/indicator-exceptions/exceptions/${exception.id}/download`, {
+        responseType: 'blob',
+      })
+
+      const blob = new Blob([response.data], { type: 'application/pdf' })
+      const url = window.URL.createObjectURL(blob)
+      const filename = exception.supportFileOriginal || exception.supportFile || 'sustento.pdf'
+
+      if (mode === 'view') {
+        window.open(url, '_blank', 'noopener,noreferrer')
+        window.setTimeout(() => window.URL.revokeObjectURL(url), 60_000)
+        return
+      }
+
+      const link = document.createElement('a')
+      link.href = url
+      link.download = filename
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error('Error downloading support file:', error)
+      alert('Error al descargar el archivo de sustento')
+    }
   }
 
   const getStatusColor = (status: string) => {
@@ -167,8 +209,30 @@ export default function ExceptionControl() {
     }
   }
 
+  const getPlanInfo = (exception: Exception) =>
+    exception.variable.indicator.action?.objective?.plan ||
+    exception.variable.indicator.action?.plan ||
+    exception.variable.indicator.objective?.plan
+
+  const getContextInfo = (exception: Exception) =>
+    exception.exceptionType === 'iaei'
+      ? exception.variable.indicator.action
+      : exception.variable.indicator.objective
+
   return (
     <div className="p-6">
+      {showMessage && (
+        <div
+          className={`mb-4 rounded-lg border px-4 py-3 text-sm ${
+            showMessage.type === 'success'
+              ? 'border-green-200 bg-green-50 text-green-800'
+              : 'border-red-200 bg-red-50 text-red-800'
+          }`}
+        >
+          {showMessage.message}
+        </div>
+      )}
+
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-neutral-900 mb-2">
           Control y Seguimiento de Excepciones
@@ -178,7 +242,6 @@ export default function ExceptionControl() {
         </p>
       </div>
 
-      {/* Pestañas */}
       <div className="flex space-x-1 mb-6 bg-neutral-100 p-1 rounded-lg">
         <button
           onClick={() => setActiveTab('ioei')}
@@ -202,7 +265,6 @@ export default function ExceptionControl() {
         </button>
       </div>
 
-      {/* Filtros */}
       <div className="bg-white rounded-xl border border-neutral-200 p-4 mb-6">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
@@ -222,7 +284,6 @@ export default function ExceptionControl() {
         </div>
       </div>
 
-      {/* Tabla de excepciones */}
       <div className="bg-white rounded-xl border border-neutral-200 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -274,129 +335,147 @@ export default function ExceptionControl() {
                   </td>
                 </tr>
               ) : (
-                exceptions.map((exception) => (
-                  <tr key={exception.id} className="hover:bg-neutral-50">
-                    <td className="px-4 py-4 text-sm">
-                      <div>
-                        <div className="font-medium text-neutral-900">
-                          {exception.variable.indicator.action?.objective?.plan?.name ||
-                           exception.variable.indicator.objective?.plan?.name}
+                exceptions.map((exception) => {
+                  const plan = getPlanInfo(exception)
+                  const context = getContextInfo(exception)
+
+                  return (
+                    <tr key={exception.id} className="hover:bg-neutral-50">
+                      <td className="px-4 py-4 text-sm">
+                        <div>
+                          <div className="font-medium text-neutral-900">
+                            {plan?.name || 'Sin plan asociado'}
+                          </div>
+                          <div className="text-neutral-500">
+                            {plan ? `${plan.startYear} - ${plan.endYear}` : 'Sin período'}
+                          </div>
                         </div>
-                        <div className="text-neutral-500">
-                          {exception.variable.indicator.action?.objective?.plan?.startYear} - 
-                          {exception.variable.indicator.action?.objective?.plan?.endYear}
+                      </td>
+                      <td className="px-4 py-4 text-sm">
+                        <div>
+                          <div className="font-medium text-neutral-900">
+                            {context?.code || 'Sin referencia'}
+                          </div>
+                          <div className="text-neutral-500 text-xs max-w-xs truncate">
+                            {context?.statement || 'Sin descripción'}
+                          </div>
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-4 text-sm">
-                      <div>
-                        <div className="font-medium text-neutral-900">
-                          {activeTab === 'ioei' 
-                            ? exception.variable.indicator.objective?.code
-                            : exception.variable.indicator.action?.code}
+                      </td>
+                      <td className="px-4 py-4 text-sm">
+                        <div>
+                          <div className="font-medium text-neutral-900">
+                            {exception.variable.indicator.code}
+                          </div>
+                          <div className="text-neutral-500 text-xs max-w-xs truncate">
+                            {exception.variable.indicator.statement}
+                          </div>
                         </div>
-                        <div className="text-neutral-500 text-xs max-w-xs truncate">
-                          {activeTab === 'ioei'
-                            ? exception.variable.indicator.objective?.statement
-                            : exception.variable.indicator.action?.statement}
+                      </td>
+                      <td className="px-4 py-4 text-sm">
+                        <div>
+                          <div className="font-medium text-neutral-900">
+                            {exception.variable.code}
+                          </div>
+                          <div className="text-neutral-500 text-xs max-w-xs truncate">
+                            {exception.variable.name}
+                          </div>
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-4 text-sm">
-                      <div>
-                        <div className="font-medium text-neutral-900">
-                          {exception.variable.indicator.code}
+                      </td>
+                      <td className="px-4 py-4 text-sm">
+                        <div>
+                          <div className="font-medium text-neutral-900">
+                            {exception.costCenter.code}
+                          </div>
+                          <div className="text-neutral-500 text-xs max-w-xs truncate">
+                            {exception.costCenter.description}
+                          </div>
                         </div>
-                        <div className="text-neutral-500 text-xs max-w-xs truncate">
-                          {exception.variable.indicator.statement}
+                      </td>
+                      <td className="px-4 py-4 text-sm">
+                        <div className="flex items-center gap-1 text-neutral-500">
+                          <FiCalendar className="w-3 h-3" />
+                          {exception.periodFrom} a {exception.periodTo}
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-4 text-sm">
-                      <div>
-                        <div className="font-medium text-neutral-900">
-                          {exception.variable.code}
+                      </td>
+                      <td className="px-4 py-4 text-sm">
+                        <div className="max-w-xs truncate" title={exception.reason}>
+                          {exception.reason}
                         </div>
-                        <div className="text-neutral-500 text-xs max-w-xs truncate">
-                          {exception.variable.name}
+                      </td>
+                      <td className="px-4 py-4 text-sm">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(exception.status)}`}>
+                          {getStatusText(exception.status)}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4 text-sm">
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-1 text-neutral-700">
+                            <FiFileText className="w-4 h-4" />
+                            <span className="max-w-[180px] truncate text-xs" title={exception.supportFileOriginal || exception.supportFile}>
+                              {exception.supportFileOriginal || exception.supportFile}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <button
+                              onClick={() => handleSupportFile(exception, 'view')}
+                              className="text-primary-600 hover:text-primary-700 flex items-center gap-1 text-xs"
+                              title="Visualizar sustento"
+                            >
+                              <FiEye className="w-4 h-4" />
+                              Ver
+                            </button>
+                            <button
+                              onClick={() => handleSupportFile(exception, 'download')}
+                              className="text-primary-600 hover:text-primary-700 flex items-center gap-1 text-xs"
+                              title="Descargar sustento"
+                            >
+                              <FiDownload className="w-4 h-4" />
+                              Descargar
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-4 text-sm">
-                      <div>
-                        <div className="font-medium text-neutral-900">
-                          {exception.costCenter.code}
-                        </div>
-                        <div className="text-neutral-500 text-xs max-w-xs truncate">
-                          {exception.costCenter.description}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-4 text-sm">
-                      <div className="flex items-center gap-1 text-neutral-500">
-                        <FiCalendar className="w-3 h-3" />
-                        {exception.periodFrom} a {exception.periodTo}
-                      </div>
-                    </td>
-                    <td className="px-4 py-4 text-sm">
-                      <div className="max-w-xs truncate" title={exception.reason}>
-                        {exception.reason}
-                      </div>
-                    </td>
-                    <td className="px-4 py-4 text-sm">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(exception.status)}`}>
-                        {getStatusText(exception.status)}
-                      </span>
-                    </td>
-                    <td className="px-4 py-4 text-sm">
-                      <button
-                        onClick={() => handleDownloadFile(exception)}
-                        className="text-primary-600 hover:text-primary-700 flex items-center gap-1"
-                        title="Descargar archivo de sustento"
-                      >
-                        <FiFileText className="w-4 h-4" />
-                        <span className="text-xs">{exception.supportFile}</span>
-                      </button>
-                    </td>
-                    <td className="px-4 py-4 text-sm">
-                      <div className="flex items-center gap-2">
-                        {exception.status === 'PENDING' && (
+                      </td>
+                      <td className="px-4 py-4 text-sm">
+                        <div className="flex items-center gap-2">
+                          {exception.status === 'PENDING' && (
+                            <button
+                              onClick={() => {
+                                setSelectedException(exception)
+                                setNewStatus('APPROVED')
+                                setReviewComment(exception.reviewComment || '')
+                                setShowStatusModal(true)
+                              }}
+                              className="text-primary-600 hover:text-primary-700 text-sm"
+                            >
+                              Revisar
+                            </button>
+                          )}
+                          {exception.reviewComment && (
+                            <button
+                              className="text-neutral-600 hover:text-neutral-700"
+                              title={exception.reviewComment}
+                            >
+                              <FiEye className="w-4 h-4" />
+                            </button>
+                          )}
                           <button
-                            onClick={() => {
-                              setSelectedException(exception)
-                              setShowStatusModal(true)
-                            }}
-                            className="text-primary-600 hover:text-primary-700 text-sm"
+                            onClick={() => handleDeleteException(exception.id)}
+                            className="text-red-600 hover:text-red-700 text-sm"
+                            title="Eliminar excepción"
                           >
-                            Revisar
+                            <FiTrash2 className="w-4 h-4" />
                           </button>
-                        )}
-                        {exception.reviewComment && (
-                          <button
-                            className="text-neutral-600 hover:text-neutral-700"
-                            title={exception.reviewComment}
-                          >
-                            <FiEye className="w-4 h-4" />
-                          </button>
-                        )}
-                        <button
-                          onClick={() => handleDeleteException(exception.id)}
-                          className="text-red-600 hover:text-red-700 text-sm"
-                          title="Eliminar excepción"
-                        >
-                          <FiTrash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })
               )}
             </tbody>
           </table>
         </div>
       </div>
 
-      {/* Modal para actualizar estado */}
       {showStatusModal && selectedException && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl p-6 w-full max-w-md">
