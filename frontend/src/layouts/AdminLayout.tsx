@@ -13,7 +13,8 @@ import {
   FiLogOut,
   FiFileText,
   FiBarChart2,
-  FiAlertTriangle
+  FiAlertTriangle,
+  FiLink
 } from 'react-icons/fi'
 
 interface MenuItem {
@@ -110,6 +111,12 @@ export default function AdminLayout() {
       label: 'Variables',
       icon: <FiBarChart2 className="w-5 h-5" />,
       path: '/admin/variables'
+    },
+    {
+      id: 'indicator-assignments',
+      label: 'Asignacion de Indicadores',
+      icon: <FiLink className="w-5 h-5" />,
+      path: '/admin/asignaciones-indicadores'
     },
     {
       id: 'exceptions',

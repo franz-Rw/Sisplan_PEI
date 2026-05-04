@@ -1,119 +1,65 @@
-# Solución de Problema CORS - Servidor Municipal Windows
+# Solución de CORS
 
-## **🚨 Problema Identificado**
+## Diagnóstico
 
-Error de CORS (Cross-Origin Resource Sharing) cuando el frontend intenta comunicarse con el backend en el servidor municipal:
+Antes, el proyecto tenía más riesgo de errores CORS porque:
 
-```
-Access to XMLHttpRequest at 'http://localhost:3000/api/auth/login' 
-from origin 'http://192.168.1.100:5173' 
-has been blocked by CORS policy
-```
+- el frontend podía compilarse con URLs absolutas equivocadas
+- el proxy de Vite estaba apuntando a una IP fija
+- la documentación asumía varios escenarios a la vez
 
-## **🔍 Causa Raíz**
+## Situación actual
 
-- **Frontend**: Accede desde `http://192.168.1.100:5173` (IP del servidor)
-- **Backend**: Configurado solo para `http://localhost:5173`
-- **Resultado**: Bloqueo por política de seguridad CORS
+La configuración corregida funciona así:
 
-## **✅ Solución Implementada**
+### Desarrollo
 
-### **1. Archivo .env.production**
-```bash
-# Variables de Entorno - Producción Municipal
-NODE_ENV=production
-PORT=3000
-DATABASE_URL=postgresql://sisplan_user:password@localhost:5432/sisplan_municipal
-JWT_SECRET=clave_super_secreta_municipal_2024_CAMBIAR_ESTA_CLAVE
-JWT_EXPIRE=7d
+- frontend usa `/api`
+- Vite reenvía `/api` al backend
+- archivo clave: `frontend/vite.config.ts`
 
-# CORS - Permitir acceso desde cualquier origen en la red local
-CORS_ORIGIN=http://192.168.1.100:5173,http://localhost:5173,http://127.0.0.1:5173
-```
+### Producción recomendada
 
-### **2. Actualización de backend/index.ts**
-```typescript
-// CORS - Permitir múltiples orígenes para desarrollo y producción
-const allowedOrigins = [
-  'http://localhost:5173',
-  'http://127.0.0.1:5173',
-  'http://localhost:5174',
-  'http://192.168.1.100:5173', // IP local de la municipalidad
-  'http://192.168.1.100', // Por si accede sin puerto
-]
+- el backend sirve el frontend compilado
+- el navegador usa el mismo origen para HTML y API
+- el frontend sigue llamando a `/api`
 
-// Agregar origen desde variables de entorno si existe
-if (process.env.CORS_ORIGIN) {
-  allowedOrigins.push(...process.env.CORS_ORIGIN.split(','))
-}
+Resultado:
 
-app.use(
-  cors({
-    origin: allowedOrigins,
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-  })
-)
+- en el esquema recomendado de producción, CORS casi deja de ser problema porque todo sale del mismo origen
+
+## Cuándo puede aparecer CORS
+
+Todavía puede aparecer si:
+
+- publicas frontend y backend en puertos distintos
+- accedes al frontend por una IP y al backend por otra
+- usas IIS o un proxy con host distinto sin ajustar `CORS_ORIGIN`
+
+## Configuración sugerida
+
+En `backend/.env.production`:
+
+```env
+CORS_ORIGIN=http://192.168.2.7:3000,http://localhost:3000
 ```
 
-## **🔄 Pasos para Aplicar en Servidor Municipal**
+## Recomendación práctica
 
-### **1. Actualizar Backend**
-```powershell
-# Detener servidor backend actual
-# Navegar al directorio del backend
-cd C:\Sisplan_FR\backend
+Para evitar problemas:
 
-# Usar archivo de entorno de producción
-Copy-Item .env.production .env -Force
+1. no compiles el frontend con una IP fija del backend
+2. usa `VITE_API_URL=/api` en producción
+3. sirve el frontend compilado desde el backend
+4. publica todo con una sola URL visible para el usuario
 
-# Reiniciar backend
-npm run build
-npm start
-```
+## Prueba rápida
 
-### **2. Verificar Conexión**
-```powershell
-# Probar health check
-curl http://localhost:3000/health
+Si el sistema ya está levantado:
 
-# Debería responder:
-# {"status":"OK","timestamp":"2024-04-23T..."}
-```
+- abre `http://IP_SERVIDOR:3000`
+- intenta iniciar sesión
+- revisa en DevTools que las peticiones vayan a `/api/auth/login`
 
-### **3. Probar Frontend**
-1. Abrir navegador en: `http://192.168.1.100:5173`
-2. Intentar iniciar sesión
-3. Verificar que no aparezcan errores CORS en consola
+Si ves llamadas a `localhost` desde otra máquina, entonces el build del frontend es incorrecto y debe recompilarse.
 
-## **🔧 Configuración Adicional (Si persiste el problema)**
-
-### **Firewall de Windows**
-```powershell
-# Abrir puertos necesarios
-netsh advfirewall firewall add rule name="SISPLAN Backend" dir=in action=allow protocol=TCP localport=3000
-netsh advfirewall firewall add rule name="SISPLAN Frontend" dir=in action=allow protocol=TCP localport=5173
-```
-
-### **Variables de Entorno del Sistema**
-```powershell
-# Configurar variables de entorno del sistema
-[Environment]::SetEnvironmentVariable("NODE_ENV", "production", "User")
-[Environment]::SetEnvironmentVariable("CORS_ORIGIN", "http://192.168.1.100:5173", "User")
-```
-
-## **✅ Verificación Final**
-
-Después de aplicar los cambios:
-
-1. **Backend**: Responde en `http://localhost:3000`
-2. **Frontend**: Accesible en `http://192.168.1.100:5173`
-3. **CORS**: Permitido entre los dos orígenes
-4. **Login**: Funciona sin errores de consola
-5. **API**: Todas las rutas funcionan correctamente
-
----
-
-**Última actualización**: 23 de Abril, 2026  
-**Estado**: Solución implementada y lista para despliegue

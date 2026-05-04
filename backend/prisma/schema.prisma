@@ -23,9 +23,8 @@ model User {
   updatedAt          DateTime    @updatedAt
   assignedCostCenter CostCenter? @relation("AssignedUser")
   costCenter         CostCenter? @relation(fields: [costCenterId], references: [id])
-  users             User[]
-  assignedIndicators IndicatorAssignment[]
-  auditLogs        AuditLog[]
+  assignedIndicators IndicatorAssignment[] @relation("AssignedIndicators")
+  auditLogs         AuditLog[]             @relation("AuditLogs")
   assignedAssignments IndicatorAssignment[] @relation("AssignedBy")
   deletedAssignments IndicatorAssignment[] @relation("DeletedBy")
 
@@ -187,6 +186,7 @@ model Indicator {
   updatedAt          DateTime            @updatedAt
   indicatorValues    IndicatorValue[]
   indicatorVariables IndicatorVariable[]
+  assignments        IndicatorAssignment[]
   formulaConfig      IndicatorFormulaConfig?
   action             StrategicAction?    @relation("ActionIndicator", fields: [actionId], references: [id])
   objective          StrategicObjective? @relation("ObjectiveIndicator", fields: [objectiveId], references: [id])

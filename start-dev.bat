@@ -7,7 +7,7 @@ taskkill /F /IM node.exe 2>nul
 
 echo "Iniciando backend..."
 cd /d "d:\Sisplan_PEI\backend"
-start cmd /k "npm start"
+start cmd /k "npm run dev"
 
 echo "Esperando 5 segundos para que backend inicie..."
 timeout /t 5 /nobreak >nul

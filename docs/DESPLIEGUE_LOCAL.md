@@ -1,175 +1,129 @@
-# Guía de Despliegue Local - Laptop de Desarrollo
+# Despliegue local en laptop
 
-## **🎯 Objetivo**
-Desplegar SISPLAN FR en tu laptop local para desarrollo y pruebas.
+## Objetivo
 
-## **✅ Requisitos Cumplidos**
-- **CORS Configurado**: Soporta localhost, 127.0.0.1 y tu IP local
-- **Variables de Entorno**: Listas para producción y desarrollo
-- **Base de Datos**: PostgreSQL configurado
-- **Sistema Completo**: Frontend + Backend funcionales
+Levantar SISPLAN FR en tu laptop para desarrollo, pruebas funcionales y validación previa al servidor.
 
-## **🚀 Pasos para Despliegue Local**
+## Estado confirmado
 
-### **1. Preparar Base de Datos**
-```bash
-# Instalar PostgreSQL si no está instalado
-# Windows: Descargar desde postgresql.org
+Tu prueba local ya mostró:
 
-# Crear base de datos
-CREATE DATABASE sisplan_local;
-CREATE USER sisplan_user WITH PASSWORD 'tu_password';
-GRANT ALL PRIVILEGES ON DATABASE sisplan_local TO sisplan_user;
+- frontend listo en `http://localhost:5173`
+- frontend visible por red en `http://192.168.2.45:5173`
+- backend funcionando en desarrollo
+
+Eso confirma que el entorno local está operativo para seguir probando flujos.
+
+## Desarrollo local
+
+### Backend
+
+```powershell
+cd D:\Sisplan_PEI\backend
+Copy-Item .env.example .env -Force
 ```
 
-### **2. Configurar Backend**
-```bash
-# Navegar al directorio backend
-cd d:\Sisplan_PEI\backend
+Edita `backend/.env`:
 
-# Usar variables de entorno locales
-Copy-Item .env.example .env
-
-# Editar .env con tus datos:
+```env
 NODE_ENV=development
 PORT=3000
-DATABASE_URL=postgresql://sisplan_user:tu_password@localhost:5432/sisplan_local
-JWT_SECRET=clave_secreta_desarrollo_2024
+DATABASE_URL=postgresql://postgres:TU_PASSWORD@localhost:5432/sisplan_db
+JWT_SECRET=CAMBIAR_ESTA_CLAVE_LOCAL
+JWT_EXPIRE=7d
 CORS_ORIGIN=http://localhost:5173,http://127.0.0.1:5173
+```
 
-# Instalar dependencias
+Luego:
+
+```powershell
 npm install
-
-# Aplicar migraciones
-npx prisma migrate dev
-
-# Crear datos iniciales
-npx prisma db seed
-
-# Iniciar backend
+npx prisma generate
+npx prisma db push
+npm run db:seed
 npm run dev
 ```
 
-### **3. Configurar Frontend**
-```bash
-# Navegar al directorio frontend (nueva terminal)
-cd d:\Sisplan_PEI\frontend
+### Frontend
 
-# Crear archivo .env.local
-echo "VITE_API_URL=http://localhost:3000/api" > .env.local
+En otra terminal:
 
-# Instalar dependencias
+```powershell
+cd D:\Sisplan_PEI\frontend
 npm install
-
-# Iniciar frontend
 npm run dev
 ```
 
-### **4. Acceder al Sistema**
-- **Frontend**: http://localhost:5173
-- **Backend API**: http://localhost:3000
-- **Health Check**: http://localhost:3000/health
+## URLs esperadas
 
-## **🔐 Credenciales Iniciales**
-```
-Email: admin@sisplan.local
-Contraseña: Password@2026
-```
+- frontend local: `http://localhost:5173`
+- frontend por red: `http://192.168.2.45:5173`
+- backend: `http://localhost:3000`
+- health: `http://localhost:3000/health`
 
-## **🛠️ Comandos Útiles**
+## Credenciales iniciales
 
-### **Backend**
-```bash
-npm run dev          # Servidor desarrollo
-npm run build        # Compilar para producción
-npm start            # Servidor producción
-npm run db:studio    # Prisma Studio
-npm run db:seed      # Crear datos iniciales
-```
+- correo: `admin@sisplan.local`
+- contraseña: `Password@2026`
 
-### **Frontend**
-```bash
-npm run dev          # Servidor desarrollo
-npm run build        # Build para producción
-npm run preview      # Preview del build
-npm run lint         # Validar código
-```
+## Qué debes validar en laptop
 
-### **Base de Datos**
-```bash
-npx prisma migrate dev    # Nueva migración
-npx prisma studio         # UI de base de datos
-npx prisma db seed        # Poblar datos
-npx prisma db push        # Sincronizar schema
-```
+### Pruebas mínimas
 
-## **🔍 Verificación Funcional**
+- login de administrador
+- navegación por dashboard
+- centros de costo
+- usuarios
+- planes
+- indicadores
+- reportes
 
-### **1. Probar Backend**
-```bash
-curl http://localhost:3000/health
-# Respuesta esperada: {"status":"OK","timestamp":"..."}
-```
+### Pruebas recomendadas
 
-### **2. Probar Frontend**
-1. Abrir navegador en http://localhost:5173
-2. Intentar login con credenciales iniciales
-3. Verificar que no haya errores CORS en consola
+- crear y editar registros
+- cerrar sesión y volver a ingresar
+- validar que no aparezcan errores CORS en consola
+- probar desde otra PC de la red usando la IP de tu laptop
 
-### **3. Probar Funcionalidades**
-- [ ] Login funciona
-- [ ] Dashboard carga datos
-- [ ] Crear/Editar usuarios
-- [ ] Crear/Editar centros de costo
-- [ ] Crear planes estratégicos
-- [ ] Generar reportes PDF
+## Prueba local en modo producción
 
-## **🚨 Solución de Problemas Comunes**
+Esta prueba es la antesala del servidor.
 
-### **Error CORS**
-```bash
-# Verificar que backend esté configurado con tu origen
-# Revisar archivo backend/src/index.ts
-# Debe incluir http://localhost:5173 en allowedOrigins
+### Compilar
+
+```powershell
+cd D:\Sisplan_PEI\backend
+npx prisma generate
+npm run build
+
+cd ..\frontend
+npm run build
 ```
 
-### **Error Base de Datos**
-```bash
-# Verificar conexión PostgreSQL
-psql -h localhost -U sisplan_user -d sisplan_local
+### Ejecutar
 
-# Reaplicar migraciones
-npx prisma migrate reset
-npx prisma migrate dev
+```powershell
+cd D:\Sisplan_PEI\backend
+$env:NODE_ENV="production"
+npm start
 ```
 
-### **Error de Dependencias**
-```bash
-# Limpiar y reinstalar
-rm -rf node_modules package-lock.json
-npm install
-```
+### Verificar
 
-## **📊 Estado Actual del Sistema**
+- `http://localhost:3000`
+- `http://localhost:3000/health`
+- `http://192.168.2.45:3000`
 
-### **✅ Funcionalidades Disponibles**
-- **Autenticación**: Login/logout con JWT
-- **Gestión de Usuarios**: CRUD completo
-- **Centros de Costo**: Asignación y gestión
-- **Planes Estratégicos**: Creación y edición
-- **Indicadores**: Configuración y seguimiento
-- **Reportes**: PDF y Excel
-- **Dashboard**: Métricas en tiempo real
+En este modo, el backend sirve el frontend compilado.
 
-### **🔄 Flujo de Trabajo Local**
-1. **Desarrollo**: `npm run dev` en ambos directorios
-2. **Pruebas**: Acceder via localhost
-3. **Cambios**: Auto-reload con Vite y Nodemon
-4. **Base de Datos**: Prisma Studio para visualización
+## Conclusión práctica
 
----
+Si en tu laptop:
 
-**✅ Listo para desarrollo local en tu laptop!**
+- funciona en desarrollo
+- compila backend
+- compila frontend
+- y abre correctamente en `http://localhost:3000` en producción
 
-**Última actualización**: 23 de Abril, 2026  
-**Estado**: Guía completa y funcional
+entonces ya puedes copiarlo al servidor con mucho menos riesgo.
+

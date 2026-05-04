@@ -43,6 +43,7 @@ export const authService = {
 
   logout: () => {
     localStorage.removeItem('authToken')
+    localStorage.removeItem('userId')
   },
 
   getToken: () => {

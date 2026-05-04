@@ -46,6 +46,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           // Validate token and get user profile
           const userProfile = await authService.getProfile()
           setUser(userProfile)
+          localStorage.setItem('userId', userProfile.id)
         } catch (error) {
           console.error('Token validation failed:', error)
           authService.logout()
@@ -63,6 +64,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setUser(response.user)
     setToken(response.token)
     authService.setToken(response.token)
+    localStorage.setItem('userId', response.user.id)
     
     // Redirect based on role
     if (response.user.role === 'ADMIN') {

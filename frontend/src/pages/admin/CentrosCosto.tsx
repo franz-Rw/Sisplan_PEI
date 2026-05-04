@@ -15,6 +15,17 @@ const statusLabels = {
   INACTIVO: 'Inactivo'
 }
 
+const buildOptimisticCostCenter = (
+  savedCostCenter: CostCenter,
+  assignedUser?: User
+): CostCenter => ({
+  ...savedCostCenter,
+  assignedUser: assignedUser || savedCostCenter.assignedUser,
+  users: savedCostCenter.users || [],
+  createdAt: savedCostCenter.createdAt,
+  updatedAt: savedCostCenter.updatedAt
+})
+
 export default function CentrosCosto() {
   const [costCenters, setCostCenters] = useState<CostCenter[]>([])
   const [filteredCostCenters, setFilteredCostCenters] = useState<CostCenter[]>([])
@@ -238,23 +249,18 @@ export default function CentrosCosto() {
       
       // Actualización optimista del estado local inmediato
       if (editingCostCenter) {
+        const assignedUser = formData.assignedUserId
+          ? users.find(u => u.id === formData.assignedUserId)
+          : undefined
+        const optimisticCostCenter = buildOptimisticCostCenter(savedCostCenter, assignedUser)
         // Actualizar el centro existente en el estado local
         setCostCenters(prev => {
           const updatedCenters = prev.map(cc => {
             if (cc.id === editingCostCenter.id) {
               // Buscar el usuario asignado si se proporcionó assignedUserId
-              const assignedUser = formData.assignedUserId 
-                ? users.find(u => u.id === formData.assignedUserId)
-                : null
-              
               console.log(`UPDATE - Asignando usuario ${assignedUser?.name} al centro ${editingCostCenter.code}`)
-              
-              return {
-                ...cc,
-                ...formData,
-                id: editingCostCenter.id,
-                assignedUser: assignedUser || undefined
-              }
+
+              return optimisticCostCenter
             }
             return cc
           })
@@ -282,7 +288,8 @@ export default function CentrosCosto() {
         // Agregar el nuevo centro al estado local
         const assignedUser = formData.assignedUserId 
           ? users.find(u => u.id === formData.assignedUserId)
-          : null
+          : undefined
+        const optimisticCostCenter = buildOptimisticCostCenter(savedCostCenter, assignedUser)
         
         console.log(`CREATE - Asignando usuario ${assignedUser?.name} al nuevo centro ${formData.code}`)
         
@@ -298,19 +305,11 @@ export default function CentrosCosto() {
                 cc.assignedUser?.id === formData.assignedUserId 
                   ? { ...cc, assignedUser: undefined }
                   : cc
-              ).concat([{ 
-                ...formData, 
-                id: savedCostCenter.id,
-                assignedUser: assignedUser || undefined
-              }])
+              ).concat([optimisticCostCenter])
             }
           }
           
-          return [...prev, { 
-            ...formData, 
-            id: savedCostCenter.id,
-            assignedUser: assignedUser || undefined
-          }]
+          return [...prev, optimisticCostCenter]
         })
       }
       

@@ -230,13 +230,19 @@ export class ExpressionEngine {
       return { value: 0, dataPoints: 0 }
     }
 
-    let fieldValue = component.fieldId 
+    const fieldValue = component.fieldId
       ? variableData.map(item => this.getFieldValue(item, component.fieldId))
       : variableData
 
     // Aplicar agregación si está especificada
     if (component.aggregation) {
-      fieldValue = this.applyAggregation(Array.isArray(fieldValue) ? fieldValue : [fieldValue], component.aggregation)
+      return {
+        value: this.applyAggregation(
+          Array.isArray(fieldValue) ? fieldValue : [fieldValue],
+          component.aggregation
+        ),
+        dataPoints: variableData.length
+      }
     }
 
     return {
@@ -387,32 +393,32 @@ export class ExpressionEngine {
   /**
    * Funciones específicas para procesamiento
    */
-  private async processSumFunction(component: any, context: CalculationContext): Promise<any> {
+  private async processSumFunction(_component: any, _context: CalculationContext): Promise<any> {
     // Implementación específica para SUM
     return { value: 0, dataPoints: 0 }
   }
 
-  private async processAvgFunction(component: any, context: CalculationContext): Promise<any> {
+  private async processAvgFunction(_component: any, _context: CalculationContext): Promise<any> {
     // Implementación específica para AVG
     return { value: 0, dataPoints: 0 }
   }
 
-  private async processCountFunction(component: any, context: CalculationContext): Promise<any> {
+  private async processCountFunction(_component: any, _context: CalculationContext): Promise<any> {
     // Implementación específica para COUNT
     return { value: 0, dataPoints: 0 }
   }
 
-  private async processRatioFunction(component: any, context: CalculationContext): Promise<any> {
+  private async processRatioFunction(_component: any, _context: CalculationContext): Promise<any> {
     // Implementación específica para RATIO
     return { value: 0, dataPoints: 0 }
   }
 
-  private async processRateFunction(component: any, context: CalculationContext): Promise<any> {
+  private async processRateFunction(_component: any, _context: CalculationContext): Promise<any> {
     // Implementación específica para RATE
     return { value: 0, dataPoints: 0 }
   }
 
-  private async processPercentageFunction(component: any, context: CalculationContext): Promise<any> {
+  private async processPercentageFunction(_component: any, _context: CalculationContext): Promise<any> {
     // Implementación específica para PERCENTAGE
     return { value: 0, dataPoints: 0 }
   }

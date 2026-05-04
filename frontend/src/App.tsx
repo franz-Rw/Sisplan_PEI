@@ -14,6 +14,7 @@ import ConfiguracionPlazos from '@pages/admin/ConfiguracionPlazos'
 import ObjetivosAccionesEstrategicas from '@pages/admin/ObjetivosAccionesEstrategicas'
 import Variables from '@pages/admin/Variables'
 import Seguimiento from '@pages/admin/Seguimiento'
+import IndicatorAssignments from '@pages/admin/IndicatorAssignments'
 
 // Admin Reportes Pages
 import AdminReportesVariables from '@pages/admin/ReportesVariables'
@@ -48,6 +49,7 @@ function App() {
             <Route path="objetivos" element={<ObjetivosAccionesEstrategicas />} />
             <Route path="variables" element={<Variables />} />
             <Route path="seguimiento" element={<Seguimiento />} />
+            <Route path="asignaciones-indicadores" element={<IndicatorAssignments />} />
             <Route path="reportes/variables" element={<AdminReportesVariables />} />
             <Route path="reportes/usuarios" element={<AdminReportesUsuarios />} />
             <Route path="reportes/centros-costo" element={<AdminReportesCentrosCosto />} />

@@ -1,40 +1,30 @@
-# Documentación Técnica - SISPLAN FR
+# Documentación de SISPLAN FR
 
-## **Documentos Disponibles**
+Esta carpeta concentra la documentación operativa del proyecto.
 
-### **Guías de Implementación**
-- [**Guía de Acceso Administrador**](./GUIA_ADMIN_ACCESO.md) - Credenciales y flujo de primer ingreso
-- [**Reglas de Desarrollo**](./REGLAS_DESARROLLO.md) - Convenciones y estándares de código
-- [**Implementación de Formularios**](./IMPLEMENTACION_FORMULARIOS.md) - Formularios dinámicos y resolución de problemas
-- [**Arquitectura del Sistema**](./ARQUITECTURA.md) - Diseño técnico y stack tecnológico
+## Documentos principales
 
-### **Documentación Principal**
-- [**README.md Principal**](../README.md) - Documentación completa del proyecto
-  - Instalación y configuración
-  - Guía de despliegue en servidor municipal
-  - API endpoints y base de datos
-  - Seguridad y mantenimiento
-  - Checklist de producción
+- [DESPLIEGUE_LOCAL.md](D:/Sisplan_PEI/docs/DESPLIEGUE_LOCAL.md)
+- [DESPLEGUE_PRODUCCION_SERVIDOR.md](D:/Sisplan_PEI/docs/DESPLEGUE_PRODUCCION_SERVIDOR.md)
+- [PRODUCCION_INTRANET.md](D:/Sisplan_PEI/docs/PRODUCCION_INTRANET.md)
+- [CONFIGURACION_IPS_Y_PUERTOS.md](D:/Sisplan_PEI/docs/CONFIGURACION_IPS_Y_PUERTOS.md)
+- [SOLUCION_CORS.md](D:/Sisplan_PEI/docs/SOLUCION_CORS.md)
+- [ARQUITECTURA.md](D:/Sisplan_PEI/docs/ARQUITECTURA.md)
+- [GUIA_ADMIN_ACCESO.md](D:/Sisplan_PEI/docs/GUIA_ADMIN_ACCESO.md)
 
----
+## Orden recomendado de lectura
 
-## **Organización de Documentación**
+1. [README.md](D:/Sisplan_PEI/README.md)
+2. [DESPLIEGUE_LOCAL.md](D:/Sisplan_PEI/docs/DESPLIEGUE_LOCAL.md)
+3. [DESPLEGUE_PRODUCCION_SERVIDOR.md](D:/Sisplan_PEI/docs/DESPLEGUE_PRODUCCION_SERVIDOR.md)
+4. [PRODUCCION_INTRANET.md](D:/Sisplan_PEI/docs/PRODUCCION_INTRANET.md)
 
-Esta carpeta `docs/` contiene la documentación técnica consolidada y organizada del proyecto SISPLAN FR. Los archivos redundantes del directorio raíz han sido movidos y consolidados aquí para mantener una estructura clara.
+## Alcance
 
-### **Migración Realizada**
+La documentación quedó alineada con el estado real del proyecto:
 
-Los siguientes archivos del directorio raíz han sido consolidados:
+- desarrollo local funcionando
+- builds de producción funcionando
+- frontend compilado servido por el backend en producción
+- despliegue orientado a Windows en red local
 
-- `GUIA_PROYECTO.md` -> `docs/ARQUITECTURA.md`
-- `CONSISTENCIA_Y_CALIDAD.md` -> `docs/REGLAS_DESARROLLO.md`
-- `GUIA_ADMIN_ACCESO.md` -> `docs/GUIA_ADMIN_ACCESO.md`
-- `IMPLEMENTACION_ADMIN.md` -> Integrado en README.md principal
-- `FLUJO_ACCESO_ADMIN.md` -> Integrado en `docs/GUIA_ADMIN_ACCESO.md`
-- `CORRECCION_CAMPOS_FORMULARIO_DINAMICO.md` -> `docs/IMPLEMENTACION_FORMULARIOS.md`
-- `AUDITORIA_INTEGRAL.md` -> Información consolidada en README.md principal
-
----
-
-**Última actualización**: 21 de Abril, 2026  
-**Estado**: Documentación consolidada y organizada
