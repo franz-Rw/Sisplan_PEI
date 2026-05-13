@@ -3,6 +3,121 @@ import { prisma } from '../config/database'
 import jsPDF from 'jspdf'
 
 export const reportsController = {
+  getImplementationReport: async (req: Request, res: Response) => {
+    try {
+      const { planId } = req.params
+
+      const plan = await prisma.strategicPlan.findUnique({
+        where: { id: planId },
+        select: {
+          id: true,
+          name: true,
+          startYear: true,
+          endYear: true,
+          objectives: {
+            orderBy: { code: 'asc' },
+            select: {
+              id: true,
+              code: true,
+              statement: true,
+              indicators: {
+                orderBy: { code: 'asc' },
+                select: {
+                  id: true,
+                  planId: true,
+                  objectiveId: true,
+                  actionId: true,
+                  code: true,
+                  statement: true,
+                  parameter: true,
+                  indicatorValues: {
+                    orderBy: { year: 'asc' },
+                    select: {
+                      id: true,
+                      year: true,
+                      value: true,
+                      type: true
+                    }
+                  },
+                  indicatorResults: {
+                    where: { planId },
+                    orderBy: { year: 'asc' },
+                    select: {
+                      id: true,
+                      planId: true,
+                      objectiveId: true,
+                      actionId: true,
+                      indicatorId: true,
+                      year: true,
+                      expectedValue: true,
+                      obtainedValue: true,
+                      createdAt: true,
+                      updatedAt: true
+                    }
+                  }
+                }
+              },
+              actions: {
+                orderBy: { code: 'asc' },
+                select: {
+                  id: true,
+                  code: true,
+                  statement: true,
+                  objectiveId: true,
+                  indicators: {
+                    orderBy: { code: 'asc' },
+                    select: {
+                      id: true,
+                      planId: true,
+                      objectiveId: true,
+                      actionId: true,
+                      code: true,
+                      statement: true,
+                      parameter: true,
+                      indicatorValues: {
+                        orderBy: { year: 'asc' },
+                        select: {
+                          id: true,
+                          year: true,
+                          value: true,
+                          type: true
+                        }
+                      },
+                      indicatorResults: {
+                        where: { planId },
+                        orderBy: { year: 'asc' },
+                        select: {
+                          id: true,
+                          planId: true,
+                          objectiveId: true,
+                          actionId: true,
+                          indicatorId: true,
+                          year: true,
+                          expectedValue: true,
+                          obtainedValue: true,
+                          createdAt: true,
+                          updatedAt: true
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      })
+
+      if (!plan) {
+        return res.status(404).json({ error: 'Plan estratégico no encontrado' })
+      }
+
+      return res.json(plan)
+    } catch (error) {
+      console.error('Error generating implementation report:', error)
+      return res.status(500).json({ error: 'Error al obtener reporte de implementación' })
+    }
+  },
   // Generar reporte de Planes Estratégicos
   getPlansReport: async (req: Request, res: Response) => {
     try {

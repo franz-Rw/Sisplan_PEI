@@ -44,6 +44,7 @@ export interface StrategicAction {
 
 export interface Indicator {
   id: string
+  planId?: string
   objectiveId?: string
   actionId?: string
   code: string
@@ -120,6 +121,11 @@ export const strategicObjectivesService = {
     return response.data
   },
 
+  getByPlan: async (planId: string): Promise<StrategicObjective[]> => {
+    const response = await apiClient.get(`/strategic-objectives/plan/${planId}`)
+    return response.data
+  },
+
   getById: async (id: string): Promise<StrategicObjective> => {
     const response = await apiClient.get(`/strategic-objectives/${id}`)
     return response.data
@@ -146,8 +152,8 @@ export const strategicObjectivesService = {
 }
 
 export const strategicActionsService = {
-  getAll: async (): Promise<StrategicAction[]> => {
-    const response = await apiClient.get('/strategic-actions')
+  getAll: async (params?: { planId?: string; objectiveId?: string }): Promise<StrategicAction[]> => {
+    const response = await apiClient.get('/strategic-actions', { params })
     return response.data
   },
 

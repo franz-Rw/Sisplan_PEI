@@ -7,7 +7,7 @@ export const strategicActionsController = {
     try {
       // Leer planId desde params (/plan/:planId) o query (?planId=...)
       const planId = (req.params.planId as string) || (req.query.planId as string)
-      const { search, costCenterId } = req.query
+      const { search, costCenterId, objectiveId } = req.query
       
       let actions
       
@@ -16,6 +16,7 @@ export const strategicActionsController = {
         actions = await prisma.strategicAction.findMany({
           where: {
             ...(planId && { planId: planId as string }),
+            ...(objectiveId && { objectiveId: objectiveId as string }),
             indicators: {
               some: {
                 responsibleId: costCenterId as string
@@ -62,6 +63,7 @@ export const strategicActionsController = {
         actions = await prisma.strategicAction.findMany({
           where: {
             ...(planId && { planId: planId as string }),
+            ...(objectiveId && { objectiveId: objectiveId as string }),
             ...(search && {
               OR: [
                 { code: { contains: search as string, mode: 'insensitive' } },

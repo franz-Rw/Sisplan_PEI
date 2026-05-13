@@ -8,7 +8,12 @@ const router = Router()
 router.use(authenticate)
 
 // GET /api/plans - Obtener todos los planes
-router.get('/', plansController.getAll)
+router.get('/', (req, _res, next) => {
+  console.log('🔍 ROUTER DEBUG - Plans route called')
+  console.log('🔍 ROUTER DEBUG - Full URL:', req.originalUrl)
+  console.log('🔍 ROUTER DEBUG - Path:', req.path)
+  next()
+}, plansController.getAll)
 
 // GET /api/plans/:id - Obtener un plan por ID
 router.get('/:id', plansController.getById)

@@ -14,7 +14,8 @@ import ConfiguracionPlazos from '@pages/admin/ConfiguracionPlazos'
 import ObjetivosAccionesEstrategicas from '@pages/admin/ObjetivosAccionesEstrategicas'
 import Variables from '@pages/admin/Variables'
 import Seguimiento from '@pages/admin/Seguimiento'
-import IndicatorAssignments from '@pages/admin/IndicatorAssignments'
+import IndicatorTracking from '@pages/admin/IndicatorTracking'
+import TestDebug from '@pages/admin/TestDebug'
 
 // Admin Reportes Pages
 import AdminReportesVariables from '@pages/admin/ReportesVariables'
@@ -23,6 +24,7 @@ import ExceptionControl from '@pages/admin/ExceptionControl'
 import FormulaConfiguration from '@pages/admin/FormulaConfiguration'
 import AdminReportesCentrosCosto from '@pages/admin/ReportesCentrosCosto'
 import AdminReportesPlanes from '@pages/admin/ReportesPlanes'
+import AdminReportesImplementacion from '@pages/admin/ReportesImplementacion'
 
 // Operator Pages
 import OperatorDashboard from '@pages/operator/OperatorDashboard'
@@ -49,11 +51,13 @@ function App() {
             <Route path="objetivos" element={<ObjetivosAccionesEstrategicas />} />
             <Route path="variables" element={<Variables />} />
             <Route path="seguimiento" element={<Seguimiento />} />
-            <Route path="asignaciones-indicadores" element={<IndicatorAssignments />} />
+            <Route path="seguimiento-indicadores" element={<IndicatorTracking />} />
+            <Route path="debug" element={<TestDebug />} />
             <Route path="reportes/variables" element={<AdminReportesVariables />} />
             <Route path="reportes/usuarios" element={<AdminReportesUsuarios />} />
             <Route path="reportes/centros-costo" element={<AdminReportesCentrosCosto />} />
             <Route path="reportes/planes" element={<AdminReportesPlanes />} />
+            <Route path="reportes/implementacion" element={<AdminReportesImplementacion />} />
             <Route path="excepciones" element={<ExceptionControl />} />
             <Route path="formulas" element={<FormulaConfiguration />} />
             <Route path="configuracion/plazos" element={<ConfiguracionPlazos />} />

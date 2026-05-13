@@ -19,6 +19,7 @@ import reportsRoutes from './routes/reports'
 import indicatorExceptionsRoutes from './routes/indicatorExceptions'
 import dynamicFormulasRoutes from './routes/dynamicFormulas'
 import indicatorAssignmentsRoutes from './routes/indicatorAssignments'
+import indicatorResultsRoutes from './routes/indicatorResults'
 
 const runtimeEnv = process.env.NODE_ENV || 'development'
 const envFiles = [`.env.${runtimeEnv}`, '.env']
@@ -99,7 +100,12 @@ app.get('/health', healthHandler)
 app.get('/api/health', healthHandler)
 
 app.use('/api/auth', authRoutes)
-app.use('/api/plans', plansRoutes)
+app.use('/api/plans', (req, _res, next) => {
+  console.log('🔍 INDEX DEBUG - Plans route matched')
+  console.log('🔍 INDEX DEBUG - Request URL:', req.url)
+  console.log('🔍 INDEX DEBUG - Request method:', req.method)
+  next()
+}, plansRoutes)
 app.use('/api/cost-centers', costCentersRoutes)
 app.use('/api/users', usersRoutes)
 app.use('/api/strategic-objectives', objectivesRouter)
@@ -107,6 +113,7 @@ app.use('/api/strategic-actions', actionsRouter)
 app.use('/api/indicators', indicatorsRouter)
 app.use('/api/indicator-values', indicatorValuesRouter)
 app.use('/api/indicator-variables', indicatorVariablesRoutes)
+app.use('/api/indicator-results', indicatorResultsRoutes)
 app.use('/api/indicator-data', indicatorDataRoutes)
 app.use('/api/deadline-configs', deadlineConfigRoutes)
 app.use('/api/reports', reportsRoutes)

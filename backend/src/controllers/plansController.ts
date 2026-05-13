@@ -6,12 +6,21 @@ export const plansController = {
   // Obtener todos los planes estratégicos
   getAll: async (req: Request, res: Response) => {
     try {
+      console.log('🔍 BACKEND DEBUG - Plans controller called')
+      console.log('🔍 BACKEND DEBUG - Request URL:', req.url)
+      console.log('🔍 BACKEND DEBUG - Request method:', req.method)
+      
       const { status } = req.query
+      
+      console.log('🔍 BACKEND DEBUG - Query params:', status)
       
       const plans = await prisma.strategicPlan.findMany({
         where: status ? { status: status as PlanStatus } : undefined,
         orderBy: { createdAt: 'desc' }
       })
+      
+      console.log('🔍 BACKEND DEBUG - Plans from DB:', plans.length)
+      console.log('🔍 BACKEND DEBUG - First plan:', plans[0])
 
       return res.json(plans)
     } catch (error) {

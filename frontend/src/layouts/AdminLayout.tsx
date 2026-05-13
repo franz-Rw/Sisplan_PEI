@@ -87,6 +87,12 @@ export default function AdminLayout() {
           path: '/admin/reportes/planes'
         },
         {
+          id: 'reports-implementation',
+          label: 'Implementación',
+          icon: <FiTrendingUp className="w-4 h-4" />,
+          path: '/admin/reportes/implementacion'
+        },
+        {
           id: 'reports-variables',
           label: 'Variables',
           icon: <FiFileText className="w-4 h-4" />,
@@ -112,13 +118,7 @@ export default function AdminLayout() {
       icon: <FiBarChart2 className="w-5 h-5" />,
       path: '/admin/variables'
     },
-    {
-      id: 'indicator-assignments',
-      label: 'Asignacion de Indicadores',
-      icon: <FiLink className="w-5 h-5" />,
-      path: '/admin/asignaciones-indicadores'
-    },
-    {
+        {
       id: 'exceptions',
       label: 'Control y Seguimiento de Excepciones',
       icon: <FiAlertTriangle className="w-5 h-5" />,
@@ -126,9 +126,9 @@ export default function AdminLayout() {
     },
     {
       id: 'formulas',
-      label: 'Configuración de Fórmulas',
-      icon: <FiSettings className="w-5 h-5" />,
-      path: '/admin/formulas'
+      label: 'Seguimiento de Indicadores',
+      icon: <FiTrendingUp className="w-5 h-5" />,
+      path: '/admin/seguimiento-indicadores'
     },
     {
       id: 'config',

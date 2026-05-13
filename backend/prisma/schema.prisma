@@ -68,6 +68,7 @@ model StrategicPlan {
   indicators          Indicator[]
   actions             StrategicAction[]
   objectives          StrategicObjective[]
+  indicatorResults     IndicatorResult[]
 
   @@map("strategic_plans")
 }
@@ -84,6 +85,7 @@ model StrategicObjective {
   actions       StrategicAction[] @relation("ObjectiveAction")
   plan          StrategicPlan     @relation(fields: [planId], references: [id], onDelete: Cascade)
   responsible   CostCenter?       @relation("ObjectiveResponsible", fields: [responsibleId], references: [id])
+  indicatorResults IndicatorResult[]
 
   @@map("strategic_objectives")
 }
@@ -101,6 +103,7 @@ model StrategicAction {
   objective     StrategicObjective? @relation("ObjectiveAction", fields: [objectiveId], references: [id])
   plan          StrategicPlan       @relation(fields: [planId], references: [id], onDelete: Cascade)
   responsible   CostCenter?         @relation("ActionResponsible", fields: [responsibleId], references: [id])
+  indicatorResults IndicatorResult[]
 
   @@map("strategic_actions")
 }
@@ -188,6 +191,7 @@ model Indicator {
   indicatorVariables IndicatorVariable[]
   assignments        IndicatorAssignment[]
   formulaConfig      IndicatorFormulaConfig?
+  indicatorResults   IndicatorResult[]
   action             StrategicAction?    @relation("ActionIndicator", fields: [actionId], references: [id])
   objective          StrategicObjective? @relation("ObjectiveIndicator", fields: [objectiveId], references: [id])
   plan               StrategicPlan       @relation(fields: [planId], references: [id], onDelete: Cascade)
@@ -416,6 +420,27 @@ model IndicatorFormulaConfig {
   formulaResults    FormulaResult[]
 
   @@unique([indicatorId])
+}
+
+model IndicatorResult {
+  id                String           @id @default(cuid())
+  planId            String
+  objectiveId        String?
+  actionId          String?
+  indicatorId       String
+  year              Int
+  expectedValue      Float
+  obtainedValue      Float?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  plan              StrategicPlan     @relation(fields: [planId], references: [id])
+  objective         StrategicObjective? @relation(fields: [objectiveId], references: [id])
+  action            StrategicAction?   @relation(fields: [actionId], references: [id])
+  indicator         Indicator         @relation(fields: [indicatorId], references: [id])
+
+  @@unique([planId, indicatorId, year])
+  @@map("indicator_results")
 }
 
 model FormulaResult {
