@@ -292,13 +292,13 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     color: '#ffffff',
-    fontSize: 20,
+    fontSize: 14,
     fontWeight: 'bold',
     marginBottom: 4,
   },
   headerSubtitle: {
     color: '#ffffff',
-    fontSize: 14,
+    fontSize: 12,
   },
   headerDate: {
     color: '#bfdbfe',
@@ -313,13 +313,13 @@ const styles = StyleSheet.create({
     marginBottom: 25,
   },
   planTitle: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: 'bold',
     color: '#0f172a',
     marginBottom: 4,
   },
   planText: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#475569',
     marginBottom: 8,
   },
@@ -342,7 +342,7 @@ const styles = StyleSheet.create({
     paddingRight: 10,
   },
   objectiveTitle: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: 'bold',
     color: '#0f172a',
     lineHeight: 1.4,
